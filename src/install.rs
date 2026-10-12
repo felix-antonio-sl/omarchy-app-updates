@@ -411,6 +411,12 @@ impl InstallBackend for NativeInstall {
         ))
     }
     fn shell(&self, args: &[&str]) -> AppResult<()> {
+        if args == ["enable", "korvo.app-updates"] {
+            wait_for_catalog(
+                &crate::io::command::CommandRunner::default(),
+                std::time::Duration::from_secs(15),
+            )?;
+        }
         let (program, args) = match args {
             ["rescan"] => (
                 "/usr/share/omarchy/bin/omarchy-shell",
@@ -433,7 +439,14 @@ impl InstallBackend for NativeInstall {
         if result.code != 0 {
             return Err(AppError::new(
                 ErrorCode::TransactionFailed,
-                "El shell no pudo activar el cambio; se conserva el respaldo",
+                format!(
+                    "El shell no pudo activar el cambio; se conserva el respaldo: {}",
+                    format!("{} {}", result.stdout, result.stderr)
+                        .chars()
+                        .take(1024)
+                        .collect::<String>()
+                        .trim()
+                ),
             ));
         }
         Ok(())
@@ -443,6 +456,36 @@ impl InstallBackend for NativeInstall {
             &["-R", "--noconfirm", "--", "omarchy-app-updates-helper"],
             paths,
         )
+    }
+}
+pub fn wait_for_catalog(
+    commands: &crate::io::command::CommandRunner,
+    timeout: std::time::Duration,
+) -> AppResult<()> {
+    let started = std::time::Instant::now();
+    loop {
+        let mut spec = crate::io::command::CommandSpec::new("/usr/share/omarchy/bin/omarchy-shell")
+            .args(["shell".into(), "listPlugins".into()]);
+        spec.timeout = std::time::Duration::from_secs(3);
+        let output = commands.run(&spec)?;
+        if output.code == 0
+            && serde_json::from_str::<serde_json::Value>(&output.stdout)
+                .ok()
+                .and_then(|v| {
+                    v.as_array()
+                        .map(|a| a.iter().any(|p| p["id"] == "korvo.app-updates"))
+                })
+                .unwrap_or(false)
+        {
+            return Ok(());
+        }
+        if started.elapsed() >= timeout {
+            return Err(AppError::new(
+                ErrorCode::TransactionFailed,
+                "El catálogo de Omarchy no terminó de registrar Apps; se conserva el respaldo",
+            ));
+        }
+        std::thread::sleep(std::time::Duration::from_millis(150));
     }
 }
 fn private_log(path: &Path, text: &str) -> AppResult<()> {

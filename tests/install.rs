@@ -195,6 +195,37 @@ fn cargo_hardlinked_outputs_are_pinned_as_independent_private_artifacts() {
     assert_eq!(fs::metadata(pinned.helper).unwrap().nlink(), 1);
 }
 #[test]
+fn activation_waits_for_the_asynchronous_catalog_refresh() {
+    use omarchy_app_updates::io::command::*;
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    struct Catalog(AtomicUsize);
+    impl CommandBackend for Catalog {
+        fn run(&self, spec: &CommandSpec) -> AppResult<Captured> {
+            assert_eq!(spec.args, vec!["shell", "listPlugins"]);
+            let n = self.0.fetch_add(1, Ordering::Relaxed);
+            Ok(Captured {
+                code: 0,
+                stdout: if n < 2 {
+                    "[]".into()
+                } else {
+                    r#"[{"id":"korvo.app-updates"}]"#.into()
+                },
+                stderr: String::new(),
+            })
+        }
+    }
+    let catalog = Arc::new(Catalog(AtomicUsize::new(0)));
+    install::wait_for_catalog(
+        &CommandRunner::with_backend(catalog.clone()),
+        std::time::Duration::from_secs(2),
+    )
+    .unwrap();
+    assert_eq!(catalog.0.load(Ordering::Relaxed), 3);
+}
+#[test]
 fn active_job_blocks_plugin_replacement_and_removal() {
     let d = tempfile::tempdir().unwrap();
     let paths = Paths::for_home(d.path().join("home"));
