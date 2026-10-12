@@ -137,29 +137,14 @@ fn execute(req: &Request, paths: &Paths) -> AppResult<Value> {
         }
         Action::Inventory => {
             let facts = crate::alpm::system_packages()?;
-            let mut apps = crate::inventory::discover(
+            let apps = crate::inventory::discover(
                 paths,
                 &facts,
                 &crate::io::command::CommandRunner::default(),
             )?;
             let policy = crate::policy::Policy::for_paths(paths)?;
             let report = store.update(|state| {
-                for app in &mut apps {
-                    for target in &mut app.components {
-                        if let Some(old) = state
-                            .report
-                            .apps
-                            .iter()
-                            .flat_map(|a| &a.components)
-                            .find(|c| c.id == target.id)
-                            && matches!(old.locator, Locator::Aur { .. })
-                            && matches!(target.locator, Locator::Repo { .. })
-                        {
-                            target.locator = old.locator.clone();
-                        }
-                    }
-                }
-                state.report.apps = apps;
+                crate::jobs::refresh::merge_inventory(&mut state.report, apps);
                 policy.filter_report(&mut state.report, &state.config)?;
                 if !state.config.initialized {
                     state.config.selected = state.report.selected.clone();
@@ -242,10 +227,10 @@ fn execute(req: &Request, paths: &Paths) -> AppResult<Value> {
                 let decision: crate::jobs::control::UserDecision = serde_json::from_value(value)?;
                 crate::jobs::control::respond(&data.operation_id, &decision, paths)?;
             }
-            Ok(serde_json::to_value(crate::jobs::load_job(
-                &data.operation_id,
-                paths,
-            )?)?)
+            let job = crate::jobs::load_job(&data.operation_id, paths)?;
+            Ok(
+                serde_json::json!({"operation":job.operation,"plan":job.plan,"requested_plan":job.requested_plan,"pending":job.pending,"report":job.report,"created_at":job.created_at}),
+            )
         }
         Action::Reopen => {
             let data: ReopenPayload = serde_json::from_value(req.payload.clone())?;

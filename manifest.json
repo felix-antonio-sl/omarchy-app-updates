@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "korvo.app-updates",
+  "name": "Apps",
+  "version": "0.1.0",
+  "author": "Felix Antonio",
+  "license": "GPL-3.0-or-later",
+  "description": "Versiones y actualizaciones de tus aplicaciones de escritorio, con motor Rust y planes revisables.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {"barWidget": "ui/BarWidget.qml"},
+  "barWidget": {"displayName": "Apps", "category": "System", "allowMultiple": false, "defaultSection": "right"}
+}

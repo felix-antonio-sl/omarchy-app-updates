@@ -343,3 +343,37 @@ pub fn prepare_plan(
     })?;
     Ok((plan, by_base.into_values().collect()))
 }
+
+pub fn merge_inventory(report: &mut Report, mut apps: Vec<App>) {
+    for target in apps.iter_mut().flat_map(|a| &mut a.components) {
+        if let Some(old) = report
+            .apps
+            .iter()
+            .flat_map(|a| &a.components)
+            .find(|t| t.id == target.id)
+        {
+            if matches!(old.locator, Locator::Aur { .. })
+                && matches!(target.locator, Locator::Repo { .. })
+            {
+                target.locator = old.locator.clone();
+            }
+            if target.locator == old.locator && target.installed.is_none() {
+                target.installed = old.installed.clone();
+            }
+            if target.locator != old.locator || target.installed != old.installed {
+                report.checked_at = None;
+                if let Some(c) = report.checks.iter_mut().find(|c| c.target_id == target.id) {
+                    c.stale = true;
+                }
+            }
+        } else {
+            report.checked_at = None;
+        }
+    }
+    report.checks.retain(|c| {
+        apps.iter()
+            .flat_map(|a| &a.components)
+            .any(|t| t.id == c.target_id)
+    });
+    report.apps = apps;
+}

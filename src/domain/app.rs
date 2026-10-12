@@ -22,7 +22,7 @@ pub enum FlatpakInstall {
     User,
     System { name: String },
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Locator {
     Repo {

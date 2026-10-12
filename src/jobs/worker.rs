@@ -450,7 +450,7 @@ fn execute(job: &JobHandle, server: &super::control::ControlServer) -> AppResult
                 job.check_cancelled()?;
                 let mut scope = initial.plan.clone();
                 scope.steps = vec![
-                    crate::planner::empty_step(StepKind::ArchFull, vec![]),
+                    crate::planner::empty_step(StepKind::ArchFull, step.targets.clone()),
                     step.clone(),
                 ];
                 scope = execution::aur::attach_artifacts(&scope, recipe, &artifacts, crate::now())?;

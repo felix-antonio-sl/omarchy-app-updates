@@ -72,6 +72,60 @@ pub fn save_job(job: &JobRecord, paths: &crate::paths::Paths) -> AppResult<()> {
         {
             state.report.operation = Some(job.operation.clone());
         }
+        for result in job.operation.results.iter().filter(|r| {
+            r.error.is_none()
+                && matches!(
+                    r.outcome,
+                    Outcome::Updated | Outcome::Current | Outcome::NeedsReopen
+                )
+        }) {
+            let Some(version) = &result.new_version else {
+                continue;
+            };
+            let approved = job
+                .report
+                .apps
+                .iter()
+                .flat_map(|a| &a.components)
+                .find(|t| t.id == result.target_id);
+            for target in state
+                .report
+                .apps
+                .iter_mut()
+                .flat_map(|a| &mut a.components)
+                .filter(|t| t.id == result.target_id)
+            {
+                if approved.is_none_or(|a| a.locator != target.locator)
+                    || (target.installed != result.old_version
+                        && target.installed != result.new_version)
+                {
+                    continue;
+                }
+                target.installed = Some(version.clone());
+                if let Some(check) = state
+                    .report
+                    .checks
+                    .iter_mut()
+                    .find(|c| c.target_id == target.id)
+                {
+                    check.installed = Some(version.clone());
+                    check.state = if version.kind == VersionKind::FlatpakCommit {
+                        if check.available.as_ref() == Some(version) {
+                            CheckState::Current
+                        } else {
+                            check.stale = true;
+                            CheckState::Unknown
+                        }
+                    } else {
+                        crate::providers::releases::classify(
+                            version,
+                            check.available.as_ref(),
+                            check.published.as_ref(),
+                        )?
+                    };
+                }
+            }
+        }
         Ok(())
     })
 }

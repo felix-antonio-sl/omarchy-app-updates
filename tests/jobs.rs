@@ -497,3 +497,101 @@ fn interrupted_job_with_missing_receipt_updates_the_visible_operation() {
         Phase::Failed
     );
 }
+
+#[test]
+fn panel_observation_does_not_reserialize_recipe_code_or_private_execution_fields() {
+    let d = tempfile::tempdir().unwrap();
+    let (plan, _, paths) = common::plan(d.path());
+    let backend = Backend::default();
+    let source = d.path().join("engine");
+    fs::write(&source, b"engine").unwrap();
+    let state = State {
+        report: common::fixture(d.path()).0,
+        ..State::default()
+    };
+    Store::new(paths.clone()).save(&state).unwrap();
+    let id = submit_with_backend(&plan, &paths, &backend, &source, 100).unwrap();
+    let mut job = omarchy_app_updates::jobs::load_job(&id, &paths).unwrap();
+    job.recipes.insert(
+        "fixture".into(),
+        omarchy_app_updates::execution::aur::AurRecipe {
+            package_base: "fixture".into(),
+            commit: String::new(),
+            files: vec![],
+            diff: "unneeded recipe code".into(),
+            dependencies: vec![],
+            digest: String::new(),
+            requested: vec![],
+            packages: Default::default(),
+            repository: d.path().into(),
+        },
+    );
+    omarchy_app_updates::jobs::save_job(&job, &paths).unwrap();
+    let response = omarchy_app_updates::protocol::dispatch(
+        omarchy_app_updates::protocol::Request {
+            protocol_version: 1,
+            request_id: "observation".into(),
+            action: omarchy_app_updates::protocol::Action::Operation,
+            payload: serde_json::json!({"operation_id":id}),
+        },
+        &paths,
+    )
+    .unwrap()
+    .result
+    .unwrap();
+    assert!(response.get("recipes").is_none());
+    assert!(response.get("executable").is_none());
+    assert_eq!(response["operation"]["id"], id.0);
+}
+
+#[test]
+fn verified_worker_receipts_refresh_visible_versions_and_counter_inputs() {
+    let d = tempfile::tempdir().unwrap();
+    let (plan, _, paths) = common::plan(d.path());
+    let backend = Backend::default();
+    let source = d.path().join("engine");
+    fs::write(&source, b"engine").unwrap();
+    let state = State {
+        report: common::fixture(d.path()).0,
+        ..State::default()
+    };
+    Store::new(paths.clone()).save(&state).unwrap();
+    let id = submit_with_backend(&plan, &paths, &backend, &source, 100).unwrap();
+    let mut job = omarchy_app_updates::jobs::load_job(&id, &paths).unwrap();
+    job.operation.results.push(TargetResult {
+        target_id: "repo:ghostty".into(),
+        outcome: Outcome::Updated,
+        old_version: Some(Version::arch("1.0-1")),
+        new_version: Some(Version::arch("2.0-1")),
+        error: None,
+    });
+    omarchy_app_updates::jobs::save_job(&job, &paths).unwrap();
+    let report = Store::new(paths).load().unwrap().report;
+    assert_eq!(report.checks[0].state, CheckState::Current);
+    assert_eq!(
+        report.apps[0].components[0].installed.as_ref().unwrap().raw,
+        "2.0-1"
+    );
+}
+
+#[test]
+fn reopening_inventory_preserves_cached_local_versions_and_invalidates_changed_packages() {
+    use omarchy_app_updates::jobs::refresh::merge_inventory;
+    let d = tempfile::tempdir().unwrap();
+    let (mut report, _, _, _) = common::fixture(d.path());
+    let old = report.apps[0].components[0].clone();
+    report.apps[0].components[0].locator = Locator::TelegramLocal {
+        root: d.path().join("Telegram"),
+    };
+    let mut apps = report.apps.clone();
+    apps[0].components[0].installed = None;
+    merge_inventory(&mut report, apps);
+    assert_eq!(report.apps[0].components[0].installed, old.installed);
+    assert_eq!(report.checked_at, Some(100));
+    report.apps[0].components[0] = old;
+    let mut apps = report.apps.clone();
+    apps[0].components[0].installed = Some(Version::arch("3.0-1"));
+    merge_inventory(&mut report, apps);
+    assert_eq!(report.checked_at, None);
+    assert!(report.checks[0].stale);
+}

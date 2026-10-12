@@ -533,23 +533,23 @@ ampliar `src/execution/reopen.rs`.
 `ViewModel.js` expone `visibleRows(report, filter, query)` y `updateCount(report)`;
 el binario y bootstrap se referencian con rutas relativas verificadas al plugin.
 
-- [ ] **1. Escribir `tst_AppUpdates.qml`**: fixture con update, PublisherAhead,
+- [x] **1. Escribir `tst_AppUpdates.qml`**: fixture con update, PublisherAhead,
   Unknown, WebAutomatic y Steam doble da contador correcto; filtro/búsqueda
   preservan IDs; texto `<b>` se ve literal; error/fecha stale visibles; plan
   muestra paquetes adicionales; cancelación de auth y plan revisado no activan
   apply viejo; Escape cierra y reabrir conserva operación. Testear selection e
   historial con Controller falso que captura solicitudes, sin ejecutar binarios.
-- [ ] **2. Ejecutar** `/usr/lib/qt6/bin/qmltestrunner -input tests/qml -import /usr/share/omarchy/shell`:
+- [x] **2. Ejecutar** `/usr/lib/qt6/bin/qmltestrunner -input tests/qml -import /usr/share/omarchy/shell`:
   debe fallar antes de crear los componentes.
-- [ ] **3. Implementar** interfaces con `qs.Ui`/`qs.Commons`, tamaño adaptativo,
+- [x] **3. Implementar** interfaces con `qs.Ui`/`qs.Commons`, tamaño adaptativo,
   scroll, foco, switchPanel, lista editable, detalles, receta AUR, plan, decisiones
   e historial. Texto externo siempre PlainText; enlaces solo a fuentes permitidas.
   En abrir, mostrar caché y refrescar si corresponde; durante job observar sin
   hacer comprobaciones pesadas cada segundo. Mantener idioma español de estados.
-- [ ] **4. Ejecutar** QtTest anterior, `omarchy plugin validate .` y
+- [x] **4. Ejecutar** QtTest anterior, `omarchy plugin validate .` y
   `/usr/lib/qt6/bin/qmllint -I /usr/share/omarchy/shell ui/*.qml`: PASS sin errores
   nuevos; clasificar avisos propios de imports del shell con evidencia.
-- [ ] **5. Commit:** `feat: add native Omarchy application update panel`.
+- [x] **5. Commit:** `feat: add native Omarchy application update panel`.
 
 ### Task 15: Preparación gráfica, instalación y retirada
 
