@@ -42,7 +42,21 @@ pub fn discover(paths: &Paths, facts: &[PackageFacts], io: &CommandRunner) -> Ap
         entries.sort();
         for path in entries {
             let id = path.file_name().unwrap().to_string_lossy().into_owned();
-            if !seen.insert(id.clone()) {
+            // Launcher precedence applies within an installation; a second Flatpak
+            // installation with the same exported filename is a separate candidate.
+            let scope = if directory.ends_with("flatpak/exports/share/applications") {
+                if directory.starts_with(&paths.home) {
+                    "flatpak-user"
+                } else {
+                    "flatpak-system"
+                }
+            } else {
+                "desktop"
+            };
+            if scope == "flatpak-user" && seen.contains(&format!("desktop:{id}")) {
+                continue;
+            }
+            if !seen.insert(format!("{scope}:{id}")) {
                 continue;
             }
             let bytes = match fs::read(&path) {
@@ -115,7 +129,11 @@ pub fn discover(paths: &Paths, facts: &[PackageFacts], io: &CommandRunner) -> Ap
                     FlatpakInstall::User
                 } else {
                     FlatpakInstall::System {
-                        name: "default".into(),
+                        name: words
+                            .iter()
+                            .find_map(|w| w.strip_prefix("--installation="))
+                            .unwrap_or("default")
+                            .into(),
                     }
                 };
                 let scope = if installation == FlatpakInstall::User {

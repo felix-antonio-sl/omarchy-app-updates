@@ -39,6 +39,29 @@ fn desktop_fields_are_data() {
     );
 }
 #[test]
+fn identical_flatpak_export_names_preserve_user_and_system_branches() {
+    let d = tempfile::tempdir().unwrap();
+    let home = d.path().join("home");
+    let user = home.join(".local/share/flatpak/exports/share/applications");
+    let system = d.path().join("system/flatpak/exports/share/applications");
+    for (directory, branch) in [(&user, "stable"), (&system, "beta")] {
+        fs::create_dir_all(directory).unwrap();
+        fs::write(directory.join("org.test.App.desktop"), format!("[Desktop Entry]\nName=Flatpak fixture\nExec=flatpak run --branch={branch} --arch=x86_64 org.test.App\n")).unwrap();
+    }
+    let mut paths = Paths::for_home(home);
+    paths.application_dirs = vec![user, system];
+    let apps = discover(&paths, &[], &CommandRunner::default()).unwrap();
+    assert_eq!(apps.len(), 2);
+    assert!(
+        apps.iter()
+            .any(|a| a.id.0 == "flatpak:user:org.test.App/x86_64/stable")
+    );
+    assert!(
+        apps.iter()
+            .any(|a| a.id.0 == "flatpak:system:org.test.App/x86_64/beta")
+    );
+}
+#[test]
 fn precedence_and_package_grouping() {
     let d = tempfile::tempdir().unwrap();
     let user = d.path().join("user");
