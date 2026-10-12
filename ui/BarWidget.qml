@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Quickshell.Io
 import qs.Commons
 import qs.Ui as Ui
@@ -53,6 +54,18 @@ Ui.BarWidget {
         }
         function refresh(): void {
             client.refresh(true);
+        }
+        function status(): string {
+            return JSON.stringify({opened:root.opened,busy:client.busy,engineReady:client.engineReady,apps:client.report.apps.length,checks:client.report.checks.length,selected:client.report.selected.length,checkedAt:client.report.checked_at,error:client.error,action:client.inflight ? client.inflight.action : ""});
+        }
+        function buttonGeometry(): string {
+            var window=button.QsWindow.window;
+            var origin=button.mapToItem(window.contentItem,0,0);
+            var screen=window.screen;
+            if(root.bar.position==="right") origin.x+=screen.width-window.width;
+            if(root.bar.position==="bottom") origin.y+=screen.height-window.height;
+            origin.x+=screen.x;origin.y+=screen.y;
+            return JSON.stringify({x:origin.x,y:origin.y,width:button.width,height:button.height});
         }
     }
     Ui.WidgetButton {
