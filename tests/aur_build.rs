@@ -174,6 +174,23 @@ fn aur_review_is_data_only_and_pins_every_recipe_file() {
     );
 }
 #[test]
+fn successful_recipe_review_is_a_private_baseline_for_the_next_diff() {
+    let d = tempfile::tempdir().unwrap();
+    let (target, ctx, _) = fixture(d.path(), false, false);
+    let recipe = prepare_aur(&target, &ctx).unwrap();
+    record_approved_recipe(&recipe, &ctx.paths).unwrap();
+    let bytes = omarchy_app_updates::store::read_private(
+        &ctx.paths.state.join("aur/reviews/sample.json"),
+        1024 * 1024,
+    )
+    .unwrap()
+    .unwrap();
+    let baseline: AurRecipe = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(baseline.digest, recipe.digest);
+    let next = prepare_aur(&target, &ctx).unwrap();
+    assert_eq!(next.diff, "");
+}
+#[test]
 fn changed_commit_or_recipe_content_cannot_build() {
     let d = tempfile::tempdir().unwrap();
     let (target, ctx, backend) = fixture(d.path(), false, false);

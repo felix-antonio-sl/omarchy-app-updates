@@ -153,8 +153,7 @@ pub fn prepare_aur(
         .state
         .join("aur/reviews")
         .join(format!("{base}.json"));
-    let old = fs::read(&review_path)
-        .ok()
+    let old = crate::store::read_private(&review_path, 16 * 1024 * 1024)?
         .and_then(|bytes| serde_json::from_slice::<AurRecipe>(&bytes).ok());
     let diff = describe_diff(&files, old.as_ref());
     let mut recipe = AurRecipe {

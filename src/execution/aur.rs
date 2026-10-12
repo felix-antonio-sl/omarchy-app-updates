@@ -660,6 +660,18 @@ pub fn resolve_dependencies(
     })
 }
 
+pub fn record_approved_recipe(recipe: &AurRecipe, paths: &crate::paths::Paths) -> AppResult<()> {
+    if !package_name(&recipe.package_base) || recipe.digest != recipe_digest(recipe) {
+        return Err(invalid("Receta aprobada inválida"));
+    }
+    crate::store::atomic_json(
+        &paths
+            .state
+            .join("aur/reviews")
+            .join(format!("{}.json", recipe.package_base)),
+        recipe,
+    )
+}
 pub fn attach_artifacts(
     plan: &UpdatePlan,
     recipe: &AurRecipe,

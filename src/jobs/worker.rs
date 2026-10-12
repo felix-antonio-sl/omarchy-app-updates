@@ -475,6 +475,7 @@ fn execute(job: &JobHandle, server: &super::control::ControlServer) -> AppResult
                     Some(EventDetail::PlanRevised(scope.clone())),
                 )?;
                 administration(job, server, scope)?;
+                execution::aur::record_approved_recipe(recipe, &job.paths)?;
             }
             StepKind::FlatpakUpdate => {
                 job.clear_gate()?;
