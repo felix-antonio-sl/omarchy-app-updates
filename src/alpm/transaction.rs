@@ -451,6 +451,8 @@ impl PackageTransaction for AlpmTransaction {
         let result = unsafe { ffi::alpm_sync_sysupgrade(self.reader.handle.as_ptr(), 0) };
         self.awaiting_question()?;
         checked(&self.reader, result)?;
+        self.add_recipe_targets(approved)?;
+        self.awaiting_question()?;
         let mut data = ptr::null_mut();
         let result = unsafe { ffi::alpm_trans_prepare(self.reader.handle.as_ptr(), &mut data) };
         // Details depend on alpm_errno; release each corresponding owned data object.
@@ -515,6 +517,15 @@ impl PackageTransaction for AlpmTransaction {
                     repository: repo,
                     reason: if selected.contains(&name) {
                         "app"
+                    } else if approved.steps.iter().any(|s| {
+                        s.kind == StepKind::ArchFull && s.build_dependencies.contains(&name)
+                    }) || approved
+                        .steps
+                        .iter()
+                        .flat_map(|s| &s.package_changes)
+                        .any(|p| p.name == name && p.reason == "build_dependency")
+                    {
+                        "build_dependency"
                     } else if old.is_some() {
                         "system"
                     } else {
@@ -592,11 +603,34 @@ impl PackageTransaction for AlpmTransaction {
             }
         }
         self.awaiting_question()?;
-        plan.steps
+        let step = plan
+            .steps
             .iter_mut()
             .find(|s| s.kind == StepKind::ArchFull)
-            .unwrap()
-            .package_changes = changes;
+            .unwrap();
+        for change in &changes {
+            if !step.targets.iter().any(|id| {
+                id.0.strip_prefix("repo:")
+                    .or_else(|| id.0.strip_prefix("aur:"))
+                    == Some(change.name.as_str())
+            }) {
+                let origin = if approved
+                    .steps
+                    .iter()
+                    .flat_map(|s| &s.built_artifacts)
+                    .any(|a| a.name == change.name)
+                {
+                    "aur"
+                } else {
+                    "repo"
+                };
+                step.targets
+                    .push(TargetId(format!("{origin}:{}", change.name)));
+            }
+        }
+        step.targets.sort();
+        step.targets.dedup();
+        step.package_changes = changes;
         let callback = self.callback.lock().map_err(|_| {
             AppError::new(
                 ErrorCode::TransactionFailed,

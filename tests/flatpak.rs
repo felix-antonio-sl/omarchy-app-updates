@@ -158,6 +158,8 @@ fn deployment_requires_verified_commit_not_process_success() {
     let ctx = ExecutionContext::new(provider, "test-operation".into(), &Sink)
         .with_flatpak(Arc::new(NoopBackend));
     let step = PlanStep {
+        built_artifacts: vec![],
+        build_dependencies: vec![],
         kind: StepKind::FlatpakUpdate,
         targets: vec![t.id],
         package_changes: vec![],
@@ -206,6 +208,8 @@ fn change(reference: &str) -> FlatpakChange {
 }
 fn step(ids: Vec<TargetId>, changes: Vec<FlatpakChange>) -> PlanStep {
     PlanStep {
+        built_artifacts: vec![],
+        build_dependencies: vec![],
         kind: StepKind::FlatpakUpdate,
         targets: ids,
         flatpak_changes: changes,

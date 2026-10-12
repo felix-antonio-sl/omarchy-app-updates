@@ -188,3 +188,73 @@ pub fn system_packages() -> AppResult<Vec<PackageFacts>> {
 pub fn compiled_db_path() -> PathBuf {
     "/var/lib/pacman".into()
 }
+
+#[derive(Debug, Clone)]
+pub struct ArchiveInfo {
+    pub name: String,
+    pub version: String,
+    pub architecture: String,
+    pub files: Vec<String>,
+    pub depends: Vec<String>,
+}
+impl AlpmReader {
+    pub fn satisfies(&self, expression: &str) -> AppResult<bool> {
+        let dependency = cstring(expression)?;
+        unsafe {
+            let db = ffi::alpm_get_localdb(self.handle.as_ptr());
+            if db.is_null() {
+                return Err(AppError::new(ErrorCode::InvalidInput, "Base local ausente"));
+            }
+            Ok(
+                !ffi::alpm_find_satisfier(ffi::alpm_db_get_pkgcache(db), dependency.as_ptr())
+                    .is_null(),
+            )
+        }
+    }
+    /// Inspect metadata and the full archive without installing or extracting payload files.
+    pub fn archive(&self, path: &Path, siglevel: u32) -> AppResult<ArchiveInfo> {
+        let filename = cstring(&path.to_string_lossy())?;
+        let mut pkg = std::ptr::null_mut();
+        let result = unsafe {
+            ffi::alpm_pkg_load(
+                self.handle.as_ptr(),
+                filename.as_ptr(),
+                1,
+                siglevel as i32,
+                &mut pkg,
+            )
+        };
+        if result != 0 || pkg.is_null() {
+            return Err(AppError::new(
+                ErrorCode::UnsafeArtifact,
+                "No se pudo verificar el archivo de paquete completo",
+            ));
+        }
+        let info = (|| -> AppResult<ArchiveInfo> {
+            unsafe {
+                let list = ffi::alpm_pkg_get_files(pkg);
+                let mut files = vec![];
+                if !list.is_null() && (*list).count > 0 {
+                    if (*list).files.is_null() {
+                        return Err(AppError::new(
+                            ErrorCode::UnsafeArtifact,
+                            "Lista de archivos ausente",
+                        ));
+                    }
+                    for file in std::slice::from_raw_parts((*list).files, (*list).count) {
+                        files.push(ctext(file.name));
+                    }
+                }
+                Ok(ArchiveInfo {
+                    name: ctext(ffi::alpm_pkg_get_name(pkg)),
+                    version: ctext(ffi::alpm_pkg_get_version(pkg)),
+                    architecture: ctext(ffi::alpm_pkg_get_arch(pkg)),
+                    files,
+                    depends: dependency_strings(ffi::alpm_pkg_get_depends(pkg)),
+                })
+            }
+        })();
+        unsafe { ffi::alpm_pkg_free(pkg) };
+        info
+    }
+}

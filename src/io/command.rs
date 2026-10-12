@@ -98,6 +98,14 @@ impl CommandBackend for SystemBackend {
             "CARGO_BUILD_JOBS",
             "CHECKUPDATES_DB",
             "MAKEFLAGS",
+            "GIT_CONFIG_GLOBAL",
+            "GIT_CONFIG_NOSYSTEM",
+            "GIT_TERMINAL_PROMPT",
+            "PKGDEST",
+            "SRCDEST",
+            "BUILDDIR",
+            "LOGDEST",
+            "SRCPKGDEST",
         ];
         if spec.env.keys().any(|k| !ALLOWED_ENV.contains(&k.as_str())) {
             return Err(AppError::new(

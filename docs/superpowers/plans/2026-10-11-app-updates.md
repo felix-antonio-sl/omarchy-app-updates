@@ -424,13 +424,13 @@ PlanStep y staging administrativo.
 y digest; `build_aur(recipe: &AurRecipe, ctx: &ExecutionContext) -> AppResult<Vec<BuiltArtifact>>`;
 `BuiltArtifact` contiene nombre, versión, ruta y SHA-256.
 
-- [ ] **1. Escribir `aur_review_pins_execution`**: consulta no ejecuta receta;
+- [x] **1. Escribir `aur_review_pins_execution`**: consulta no ejecuta receta;
   commit cambiado bloquea build; root no compila; dependencias de build figuran
   en plan; package base dividido solo instala destinos aprobados; fallo de build
   no se reintenta como instalación; artefacto con nombre inesperado se rechaza.
   Una versión o hash de artefacto diferente exige actualizar el plan y revisarlo.
-- [ ] **2. Ejecutar** `cargo test --test aur_build`: FAIL antes del ejecutor.
-- [ ] **3. Implementar** interfaces, checkout privado del commit revisado y
+- [x] **2. Ejecutar** `cargo test --test aur_build`: FAIL antes del ejecutor.
+- [x] **3. Implementar** interfaces, checkout privado del commit revisado y
   makepkg sin root ni instalación automática. Leer `.SRCINFO` sin regenerarlo
   durante consulta; antes de compilar revisar todos los archivos ejecutables de
   la receta y sus dependencias AUR transitivas. Una dependencia con receta no
@@ -438,9 +438,9 @@ y digest; `build_aur(recipe: &AurRecipe, ctx: &ExecutionContext) -> AppResult<Ve
   en el plan que acepta el usuario antes de instalar por helper, tras coherencia
   de sistema. No reutilizar la aprobación de compilación como aprobación de un
   paquete con versión o contenido inesperado.
-- [ ] **4. Ejecutar** `cargo test --test aur_build`: PASS con recetas de prueba;
+- [x] **4. Ejecutar** `cargo test --test aur_build`: PASS con recetas de prueba;
   sistema actualizado seguido de build fallido produce resultados por fase.
-- [ ] **5. Commit:** `feat: review pinned AUR recipes and build as the user`.
+- [x] **5. Commit:** `feat: review pinned AUR recipes and build as the user`.
 
 ### Task 11: Cambio de Telegram conservando su instalación y datos
 

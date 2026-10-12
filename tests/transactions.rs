@@ -386,6 +386,11 @@ fn native_preview_resolves_fixture_packages_but_cannot_commit() {
             .iter()
             .any(|c| c.name == "fixture-lib" && c.action == PackageAction::Install)
     );
+    assert!(
+        actual.steps[0]
+            .targets
+            .contains(&TargetId("repo:fixture-lib".into()))
+    );
     assert_eq!(
         std::fs::read(db.join("local/ghostty-1.0-1/desc")).unwrap(),
         local

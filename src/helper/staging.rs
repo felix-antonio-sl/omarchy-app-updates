@@ -122,3 +122,59 @@ pub fn stage_artifact(path: &Path, expected: &str, caller_uid: u32) -> AppResult
     let area = StagingArea::new(base.join(uuid::Uuid::new_v4().to_string()), 0)?;
     area.copy(path, expected, caller_uid)
 }
+
+pub fn validate_build_artifact_path(
+    path: &Path,
+    caller: &crate::helper::validate::Caller,
+) -> AppResult<()> {
+    let base = caller
+        .home
+        .join(".local/state/omarchy-app-updates/aur/builds");
+    let relative = path.strip_prefix(base).map_err(|_| {
+        AppError::new(
+            ErrorCode::UnsafeArtifact,
+            "El artefacto debe provenir de un build privado del operador",
+        )
+    })?;
+    let parts = relative.components().collect::<Vec<_>>();
+    if parts.len() != 3
+        || parts
+            .iter()
+            .any(|c| !matches!(c, std::path::Component::Normal(_)))
+        || parts[1].as_os_str() != "artifacts"
+        || uuid::Uuid::parse_str(&parts[0].as_os_str().to_string_lossy()).is_err()
+        || !parts[2].as_os_str().to_string_lossy().contains(".pkg.tar.")
+    {
+        return Err(AppError::new(
+            ErrorCode::UnsafeArtifact,
+            "Ruta de artefacto fuera de los outputs permitidos",
+        ));
+    }
+    Ok(())
+}
+
+pub fn stage_build_artifact(
+    artifact: &crate::domain::BuiltArtifact,
+    caller: &crate::helper::validate::Caller,
+) -> AppResult<PathBuf> {
+    validate_build_artifact_path(&artifact.path, caller)?;
+    let signature_path = artifact.path.with_file_name(format!(
+        "{}.sig",
+        artifact
+            .path
+            .file_name()
+            .ok_or_else(|| AppError::new(ErrorCode::UnsafeArtifact, "Artefacto sin nombre"))?
+            .to_string_lossy()
+    ));
+    let signature =
+        crate::helper::administration::read_user_data(&signature_path, caller.uid, 1024 * 1024)?;
+    let destination = stage_artifact(&artifact.path, &artifact.sha256, caller.uid)?;
+    if let Some(bytes) = signature {
+        let destination = destination.with_file_name(format!(
+            "{}.sig",
+            destination.file_name().unwrap().to_string_lossy()
+        ));
+        crate::helper::administration::write_root_data(&destination, &bytes)?;
+    }
+    Ok(destination)
+}

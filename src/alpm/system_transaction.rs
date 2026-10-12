@@ -90,6 +90,10 @@ impl AlpmTransaction {
             for p in list_ptrs(ffi::alpm_trans_get_add(h)) {
                 let pkg = p.cast::<ffi::alpm_pkg_t>();
                 let db = ffi::alpm_pkg_get_db(pkg);
+                // User-built archives were sealed, inspected and signature-checked before add_pkg.
+                if db.is_null() {
+                    continue;
+                }
                 archives.push(Archive {
                     name: ctext(ffi::alpm_pkg_get_name(pkg)),
                     version: ctext(ffi::alpm_pkg_get_version(pkg)),
@@ -329,7 +333,16 @@ impl AlpmTransaction {
             );
         }
         // Once commit starts, sync databases are retained even on failure: installed changes are not rolled back.
-        let commit = native_commit(&self.reader);
+        let commit = native_commit(&self.reader).and_then(|_| {
+            finalize_reasons(
+                &self.reader,
+                &approved
+                    .steps
+                    .iter()
+                    .flat_map(|s| s.package_changes.clone())
+                    .collect::<Vec<_>>(),
+            )
+        });
         self.release_active()?;
         let root = self.root.as_ref().unwrap();
         let verifier = AlpmReader::open(&root.config, &root.config.dbpath)?;
@@ -346,14 +359,16 @@ impl AlpmTransaction {
                 .strip_prefix("repo:")
                 .or_else(|| target.0.strip_prefix("aur:"))
                 .unwrap_or(&target.0);
-            let change = step
-                .package_changes
-                .iter()
-                .find(|p| p.name == name && p.action != PackageAction::Remove);
+            let change = step.package_changes.iter().find(|p| p.name == name);
             let actual = installed.iter().find(|p| p.name == name);
-            let verified = change
-                .zip(actual)
-                .is_some_and(|(p, a)| p.new_version == a.version);
+            let verified = match (change, actual) {
+                (Some(p), None) if p.action == PackageAction::Remove => true,
+                (Some(p), Some(a)) if p.action != PackageAction::Remove => {
+                    p.new_version == a.version
+                }
+                (None, Some(_)) => true,
+                _ => false,
+            };
             let error = if let Err(error) = &commit {
                 Some(error.clone())
             } else if !verified {
@@ -367,7 +382,11 @@ impl AlpmTransaction {
             results.push(TargetResult {
                 target_id: target.clone(),
                 outcome: if error.is_none() {
-                    Outcome::Updated
+                    if change.is_none() {
+                        Outcome::Current
+                    } else {
+                        Outcome::Updated
+                    }
                 } else {
                     Outcome::Failed
                 },
@@ -408,6 +427,9 @@ impl AlpmTransaction {
                 break;
             }
         }
+        if results.is_empty() {
+            commit?;
+        }
         let mut cb = self.callback.lock().map_err(|_| {
             AppError::new(
                 ErrorCode::TransactionFailed,
@@ -440,6 +462,190 @@ fn native_commit(reader: &AlpmReader) -> AppResult<()> {
         }
     }
     checked(reader, result)
+}
+
+impl AlpmTransaction {
+    pub(crate) fn add_recipe_targets(&mut self, plan: &UpdatePlan) -> AppResult<()> {
+        if self.root.is_none() {
+            if plan
+                .steps
+                .iter()
+                .any(|s| !s.built_artifacts.is_empty() || !s.build_dependencies.is_empty())
+            {
+                return Err(AppError::new(
+                    ErrorCode::AuthUnavailable,
+                    "La vista previa no admite artefactos ni dependencias nuevas",
+                ));
+            }
+            return Ok(());
+        }
+        let h = self.reader.handle.as_ptr();
+        let dependencies = plan
+            .steps
+            .iter()
+            .filter(|s| s.kind == StepKind::ArchFull)
+            .flat_map(|s| &s.build_dependencies)
+            .collect::<std::collections::BTreeSet<_>>();
+        if dependencies.len() > 64 {
+            return Err(AppError::new(
+                ErrorCode::InvalidInput,
+                "Demasiadas dependencias adicionales",
+            ));
+        }
+        for name in dependencies {
+            if !crate::execution::aur::package_name(name) || self.policy.protected_package(name) {
+                return Err(AppError::new(
+                    ErrorCode::CoverageNeedsReview,
+                    "Dependencia adicional fuera del alcance permitido",
+                ));
+            }
+            let mut candidate = ptr::null_mut();
+            unsafe {
+                for db in list_ptrs(ffi::alpm_get_syncdbs(h)) {
+                    let db = db.cast::<ffi::alpm_db_t>();
+                    let mut usage = 0;
+                    checked(&self.reader, ffi::alpm_db_get_usage(db, &mut usage))?;
+                    if usage as u32 & ffi::ALPM_DB_USAGE_INSTALL == 0 {
+                        continue;
+                    }
+                    let p = ffi::alpm_db_get_pkg(db, cstring(name)?.as_ptr());
+                    if !p.is_null() {
+                        candidate = p;
+                        break;
+                    }
+                }
+            }
+            if candidate.is_null() {
+                return Err(AppError::new(
+                    ErrorCode::PlanChanged,
+                    "La dependencia de build dejó de estar disponible",
+                ));
+            }
+            if unsafe { ffi::alpm_pkg_should_ignore(h, candidate) } != 0 {
+                return Err(AppError::new(
+                    ErrorCode::PlanChanged,
+                    "La dependencia de build está retenida por pacman",
+                ));
+            }
+            let included = unsafe {
+                list_ptrs(ffi::alpm_trans_get_add(h))
+                    .iter()
+                    .any(|p| ctext(ffi::alpm_pkg_get_name((*p).cast())) == *name)
+            };
+            if !included {
+                let current = unsafe {
+                    ffi::alpm_db_get_pkg(ffi::alpm_get_localdb(h), cstring(name)?.as_ptr())
+                };
+                if current.is_null() {
+                    checked(&self.reader, unsafe { ffi::alpm_add_pkg(h, candidate) })?;
+                }
+            }
+        }
+        let artifacts = plan
+            .steps
+            .iter()
+            .filter(|s| s.kind == StepKind::AurBuild)
+            .flat_map(|s| &s.built_artifacts)
+            .collect::<Vec<_>>();
+        if artifacts.len() > 64 {
+            return Err(AppError::new(
+                ErrorCode::InvalidInput,
+                "Demasiados artefactos AUR",
+            ));
+        }
+        let mut seen = std::collections::BTreeSet::new();
+        for artifact in artifacts {
+            if !seen.insert(&artifact.name)
+                || !crate::execution::aur::package_name(&artifact.name)
+                || self.policy.protected_package(&artifact.name)
+            {
+                return Err(AppError::new(
+                    ErrorCode::CoverageNeedsReview,
+                    "Artefacto AUR duplicado o fuera del alcance permitido",
+                ));
+            }
+            let root = self.root.as_mut().unwrap();
+            let key = serde_json::to_string(artifact)?;
+            if !root.aur_artifacts.contains_key(&key) {
+                let path = crate::helper::staging::stage_build_artifact(artifact, &root.caller)?;
+                let mut staged = artifact.clone();
+                staged.path = path;
+                root.aur_artifacts.insert(key.clone(), staged);
+            }
+            let path = root.aur_artifacts[&key].path.clone();
+            let mut pkg = ptr::null_mut();
+            let level = unsafe { ffi::alpm_option_get_local_file_siglevel(h) };
+            let result = unsafe {
+                ffi::alpm_pkg_load(
+                    h,
+                    cstring(&path.to_string_lossy())?.as_ptr(),
+                    1,
+                    level,
+                    &mut pkg,
+                )
+            };
+            if result != 0 || pkg.is_null() {
+                self.awaiting_question()?;
+                checked(&self.reader, result)?;
+                return Err(AppError::new(
+                    ErrorCode::UnsafeArtifact,
+                    "No se pudo cargar el artefacto firmado/verificado",
+                ));
+            }
+            let inspected = (|| -> AppResult<()> {
+                unsafe {
+                    if ctext(ffi::alpm_pkg_get_name(pkg)) != artifact.name
+                        || ctext(ffi::alpm_pkg_get_version(pkg)) != artifact.version
+                    {
+                        return Err(AppError::new(
+                            ErrorCode::PlanChanged,
+                            "El nombre o versión del artefacto difiere del plan aprobado",
+                        ));
+                    }
+                    let info = self.reader.archive(&path, level as u32)?;
+                    validate_payload_paths(&info.files, &self.policy)?;
+                    validate_migration_payload(&info.files)?;
+                    Ok(())
+                }
+            })();
+            if let Err(e) = inspected {
+                unsafe { ffi::alpm_pkg_free(pkg) };
+                return Err(e);
+            }
+            let result = unsafe { ffi::alpm_add_pkg(h, pkg) };
+            if result != 0 {
+                unsafe { ffi::alpm_pkg_free(pkg) };
+                checked(&self.reader, result)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+fn finalize_reasons(reader: &AlpmReader, changes: &[PackageChange]) -> AppResult<()> {
+    for change in changes {
+        if change.old_version.is_none()
+            && change.action == PackageAction::Install
+            && change.reason == "build_dependency"
+        {
+            let pkg = unsafe {
+                ffi::alpm_db_get_pkg(
+                    ffi::alpm_get_localdb(reader.handle.as_ptr()),
+                    cstring(&change.name)?.as_ptr(),
+                )
+            };
+            if pkg.is_null() {
+                return Err(AppError::new(
+                    ErrorCode::TransactionFailed,
+                    "No se pudo registrar la dependencia instalada",
+                ));
+            }
+            checked(reader, unsafe {
+                ffi::alpm_pkg_set_reason(pkg, ffi::ALPM_PKG_REASON_DEPEND)
+            })?;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -499,6 +705,25 @@ mod tests {
         }
         assert!(!root.join("usr/share/apps-fixture/proof").exists());
         native_commit(&reader).unwrap();
+        let dependency = PackageChange {
+            action: PackageAction::Install,
+            name: "apps-fixture".into(),
+            old_version: None,
+            new_version: "1.0-1".into(),
+            repository: None,
+            reason: "build_dependency".into(),
+            download_bytes: None,
+        };
+        finalize_reasons(&reader, &[dependency]).unwrap();
+        assert!(
+            !reader
+                .installed()
+                .unwrap()
+                .iter()
+                .find(|p| p.name == "apps-fixture")
+                .unwrap()
+                .explicit
+        );
         unsafe {
             checked(&reader, ffi::alpm_trans_release(h)).unwrap();
         }

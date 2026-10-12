@@ -1,3 +1,4 @@
+pub mod aur;
 pub mod flatpak;
 use crate::{domain::*, paths::Paths, providers::ProviderContext};
 use std::sync::Arc;

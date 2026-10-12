@@ -21,6 +21,10 @@ pub struct UpdatePlan {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlanStep {
     #[serde(default)]
+    pub built_artifacts: Vec<BuiltArtifact>,
+    #[serde(default)]
+    pub build_dependencies: Vec<String>,
+    #[serde(default)]
     pub flatpak_changes: Vec<FlatpakChange>,
     pub kind: StepKind,
     pub targets: Vec<TargetId>,
@@ -89,4 +93,13 @@ pub struct Download {
     pub url: String,
     pub expected_sha256: Option<String>,
     pub bytes: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BuiltArtifact {
+    pub name: String,
+    pub version: String,
+    pub path: std::path::PathBuf,
+    pub sha256: String,
 }

@@ -123,6 +123,8 @@ pub fn validate_plan(
 }
 fn empty_step(kind: StepKind, targets: Vec<TargetId>) -> PlanStep {
     PlanStep {
+        built_artifacts: vec![],
+        build_dependencies: vec![],
         kind,
         targets,
         flatpak_changes: vec![],
@@ -161,7 +163,7 @@ fn matches_version(value: &str, operator: &str, wanted: &str) -> bool {
         _ => false,
     }
 }
-fn satisfies(dep: &str, name: &str, version: &str, provides: &[String]) -> bool {
+pub(crate) fn satisfies(dep: &str, name: &str, version: &str, provides: &[String]) -> bool {
     let (wanted, op, v) = dependency_parts(dep);
     if wanted == name && matches_version(version, op, v) {
         return true;
@@ -171,7 +173,7 @@ fn satisfies(dep: &str, name: &str, version: &str, provides: &[String]) -> bool 
         p == wanted && (op.is_empty() || po == "=" && matches_version(pv, op, v))
     })
 }
-fn protect_package(
+pub(crate) fn protect_package(
     package: &AvailablePackage,
     snapshot: &RepoSnapshot,
     policy: &Policy,
@@ -202,6 +204,7 @@ pub fn system_scope(
     snapshot: &RepoSnapshot,
     selected_packages: &BTreeSet<String>,
     policy: &Policy,
+    build_dependencies: &BTreeSet<String>,
 ) -> AppResult<Vec<PackageChange>> {
     let mut changes: BTreeMap<String, &AvailablePackage> = BTreeMap::new();
     for installed in &snapshot.installed {
@@ -219,6 +222,23 @@ pub fn system_scope(
             }
             protect_package(next, snapshot, policy)?;
             changes.insert(next.name.clone(), next);
+        }
+    }
+    for name in build_dependencies {
+        let package = snapshot.preferred(name).ok_or_else(|| {
+            AppError::new(
+                ErrorCode::PlanChanged,
+                "Falta una dependencia de compilación en los repositorios",
+            )
+        })?;
+        protect_package(package, snapshot, policy)?;
+        if snapshot
+            .installed
+            .iter()
+            .find(|p| &p.name == name)
+            .is_none_or(|p| p.version != package.version)
+        {
+            changes.insert(name.clone(), package);
         }
     }
     let mut pending = changes.keys().cloned().collect::<BTreeSet<_>>();
@@ -322,7 +342,9 @@ pub fn system_scope(
                 old_version: installed.map(|i| i.version.clone()),
                 new_version: p.version.clone(),
                 repository: Some(p.repository.clone()),
-                reason: if selected_packages.contains(&p.name) {
+                reason: if build_dependencies.contains(&p.name) {
+                    "build_dependency"
+                } else if selected_packages.contains(&p.name) {
                     "app"
                 } else if installed.is_some() {
                     "system"
@@ -342,6 +364,16 @@ pub fn build_plan(
     policy: &Policy,
     now: u64,
 ) -> AppResult<UpdatePlan> {
+    build_plan_with_recipes(report, selection, snapshot, policy, now, &BTreeMap::new())
+}
+pub fn build_plan_with_recipes(
+    report: &Report,
+    selection: &[AppId],
+    snapshot: &RepoSnapshot,
+    policy: &Policy,
+    now: u64,
+    recipes: &BTreeMap<TargetId, crate::execution::aur::AurRecipe>,
+) -> AppResult<UpdatePlan> {
     if !policy.coverage.verified() || !report.coverage.verified() {
         return Err(AppError::new(
             ErrorCode::CoverageNeedsReview,
@@ -355,6 +387,11 @@ pub fn build_plan(
     let mut arch_targets = vec![];
     let mut selected_packages = BTreeSet::new();
     let mut requires_coherence = false;
+    let mut build_dependencies = BTreeSet::new();
+    let reviewed = recipes
+        .values()
+        .map(|r| (r.package_base.clone(), r.clone()))
+        .collect::<BTreeMap<_, _>>();
     for id in &selected {
         let app = report.apps.iter().find(|a| &a.id == id).ok_or_else(|| {
             AppError::new(ErrorCode::InvalidInput, "Aplicación ausente del inventario")
@@ -412,11 +449,103 @@ pub fn build_plan(
                     selected_packages.insert(package.clone());
                     arch_targets.push(target.id.clone());
                 }
-                Locator::Aur { .. } => {
-                    return Err(AppError::new(
-                        ErrorCode::Unsupported,
-                        "La receta AUR debe prepararse y revisarse antes de construir el plan",
-                    ));
+                Locator::Aur { package, base } => {
+                    let recipe = recipes.get(&target.id).ok_or_else(|| {
+                        AppError::new(
+                            ErrorCode::Unsupported,
+                            "La receta AUR debe prepararse y revisarse antes de construir el plan",
+                        )
+                    })?;
+                    if &recipe.package_base != base
+                        || !recipe.requested.contains(package)
+                        || recipe.digest != crate::execution::aur::recipe_digest(recipe)
+                    {
+                        return Err(AppError::new(
+                            ErrorCode::PlanChanged,
+                            "La receta no coincide con el destino AUR",
+                        ));
+                    }
+                    let deps = crate::execution::aur::resolve_dependencies(
+                        recipe, snapshot, &reviewed, policy,
+                    )?;
+                    build_dependencies.extend(deps.repository);
+                    for base in deps.aur_bases {
+                        if steps.iter().any(|s: &PlanStep| {
+                            s.aur_recipe
+                                .as_ref()
+                                .is_some_and(|r| r.package_base == base)
+                        }) {
+                            continue;
+                        }
+                        let dependency = reviewed.get(&base).ok_or_else(|| {
+                            AppError::new(
+                                ErrorCode::Unsupported,
+                                "Falta la receta de una dependencia transitiva",
+                            )
+                        })?;
+                        let mut dependency_step = empty_step(
+                            StepKind::AurBuild,
+                            dependency
+                                .requested
+                                .iter()
+                                .map(|name| TargetId(format!("aur:{name}")))
+                                .collect(),
+                        );
+                        dependency_step.aur_recipe = Some(AurRecipeRef {
+                            package_base: base,
+                            commit: dependency.commit.clone(),
+                            digest: dependency.digest.clone(),
+                        });
+                        for package in &dependency.requested {
+                            let version = dependency.packages.get(package).ok_or_else(|| {
+                                AppError::new(
+                                    ErrorCode::PlanChanged,
+                                    "La dependencia no declara su paquete",
+                                )
+                            })?;
+                            dependency_step.package_changes.push(PackageChange {
+                                action: PackageAction::Install,
+                                name: package.clone(),
+                                old_version: None,
+                                new_version: version.clone(),
+                                repository: Some("AUR".into()),
+                                reason: "build_dependency".into(),
+                                download_bytes: None,
+                            });
+                        }
+                        dependency_step.build_dependencies = dependency
+                            .dependencies
+                            .iter()
+                            .map(|d| format!("{}: {}", d.kind, d.expression))
+                            .collect();
+                        dependency_step.requires_auth = true;
+                        steps.push(dependency_step);
+                    }
+                    let mut step = empty_step(StepKind::AurBuild, vec![target.id.clone()]);
+                    step.aur_recipe = Some(AurRecipeRef {
+                        package_base: base.clone(),
+                        commit: recipe.commit.clone(),
+                        digest: recipe.digest.clone(),
+                    });
+                    step.package_changes.push(PackageChange {
+                        action: PackageAction::Upgrade,
+                        name: package.clone(),
+                        old_version: target.installed.as_ref().map(|v| v.raw.clone()),
+                        new_version: recipe.packages.get(package).cloned().ok_or_else(|| {
+                            AppError::new(ErrorCode::PlanChanged, "Falta la versión de salida AUR")
+                        })?,
+                        repository: Some("AUR".into()),
+                        reason: "app".into(),
+                        download_bytes: None,
+                    });
+                    step.build_dependencies = recipe
+                        .dependencies
+                        .iter()
+                        .map(|d| format!("{}: {}", d.kind, d.expression))
+                        .collect();
+                    step.requires_auth = true;
+                    steps.push(step);
+                    requires_coherence = true;
                 }
                 Locator::Flatpak { installation, .. } => {
                     let mut step = empty_step(StepKind::FlatpakUpdate, vec![target.id.clone()]);
@@ -465,10 +594,11 @@ pub fn build_plan(
     }
     let mut notices = vec![];
     if requires_coherence {
-        let changes = system_scope(snapshot, &selected_packages, policy)?;
-        if !changes.is_empty() {
+        let changes = system_scope(snapshot, &selected_packages, policy, &build_dependencies)?;
+        if !changes.is_empty() || steps.iter().any(|s| s.kind == StepKind::AurBuild) {
             let mut step = empty_step(StepKind::ArchFull, arch_targets);
             step.package_changes = changes;
+            step.build_dependencies = build_dependencies.iter().cloned().collect();
             step.requires_auth = true;
             steps.insert(0, step);
             notices.push("Arch: actualización completa de paquetes, incluidas dependencias y cambios de sistema".into());

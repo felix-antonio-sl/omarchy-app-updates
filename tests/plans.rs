@@ -287,6 +287,8 @@ fn flatpak_dependency_commits_and_permissions_are_part_of_review_digest() {
     let (r, s, p) = setup(d.path());
     let mut plan = build_plan(&r, &r.selected, &s, &p, 100).unwrap();
     plan.steps.push(PlanStep {
+        built_artifacts: vec![],
+        build_dependencies: vec![],
         kind: StepKind::FlatpakUpdate,
         targets: vec!["flatpak:app".into()],
         package_changes: vec![],
