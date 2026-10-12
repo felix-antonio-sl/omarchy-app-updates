@@ -324,6 +324,13 @@ Item {
                                 onClicked: Qt.openUrlExternally(modelData)
                             }
                         }
+                        Ui.Button {
+                            visible: VM.canEnrollTelegram(root.focusedApp, parent.modelData)
+                            text: "Verificar binario de Telegram"
+                            focusable: true
+                            enabled: !root.controller.busy
+                            onClicked: root.controller.enrollTelegram(parent.modelData.target_id)
+                        }
                     }
                 }
                 Ui.Button {

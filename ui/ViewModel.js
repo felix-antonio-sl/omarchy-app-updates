@@ -6,6 +6,7 @@ function excluded(app) {
   return array(app.components).some(function(t) {return t.locator && protectedNames.indexOf(t.locator.package) >= 0})
 }
 function checksFor(report, app) {return array(report.checks).filter(function(c) {return array(app.components).some(function(t) {return t.id === c.target_id})})}
+function canEnrollTelegram(app, check) {return app && check && !check.installed && !check.stale && check.available && check.available.kind === "product" && array(app.components).some(function(t) {return t.id === check.target_id && t.locator.kind === "telegram_local"})}
 function updatable(report, app) {return checksFor(report,app).some(function(c) {return c.state === "update_available" && !c.stale})}
 function visibleRows(report, filter, query) {
   report=report||{};query=String(query||"").toLocaleLowerCase()

@@ -418,6 +418,113 @@ fn receipt(path: &Path, value: &TelegramReceipt) -> AppResult<()> {
     File::open(parent)?.sync_all()?;
     Ok(())
 }
+/// Associate an existing installation with an official release only after byte
+/// identity of both executables. This never executes or replaces either binary.
+pub fn enroll_telegram(
+    target: &TargetId,
+    version: &str,
+    ctx: &ExecutionContext,
+) -> AppResult<Version> {
+    use std::os::fd::AsRawFd;
+    let mut step = crate::planner::empty_step(StepKind::TelegramReplace, vec![target.clone()]);
+    step.downloads.push(Download {
+        url: format!("https://td.telegram.org/linux-x64/td-setup-linux-x64-{version}.tar.xz"),
+        expected_sha256: None,
+        bytes: None,
+    });
+    let version = version_from_step(&step)?;
+    let root = root_for_step(&step, ctx)?;
+    if installed_version(&root)?.is_some() {
+        return Err(AppError::new(
+            ErrorCode::InvalidInput,
+            "Telegram ya tiene una versión verificada",
+        ));
+    }
+    let root_fd = File::from(
+        rustix::fs::openat2(
+            rustix::fs::CWD,
+            &root,
+            rustix::fs::OFlags::RDONLY
+                | rustix::fs::OFlags::DIRECTORY
+                | rustix::fs::OFlags::CLOEXEC,
+            rustix::fs::Mode::empty(),
+            rustix::fs::ResolveFlags::NO_SYMLINKS | rustix::fs::ResolveFlags::NO_MAGICLINKS,
+        )
+        .map_err(|_| unsafe_artifact("Instalación Telegram enlazada"))?,
+    );
+    let pinned_root = PathBuf::from(format!("/proc/self/fd/{}", root_fd.as_raw_fd()));
+    let work = ctx
+        .paths
+        .state
+        .join("telegram-enrollment")
+        .join(uuid::Uuid::new_v4().to_string());
+    crate::store::private_dir(&work)?;
+    let result = (|| -> AppResult<Version> {
+        let url = &step.downloads[0].url;
+        let response = ctx.provider.http.get(
+            url,
+            &crate::io::http::DownloadPolicy::for_hosts(&["td.telegram.org"], 512 * 1024 * 1024),
+        )?;
+        if reqwest::Url::parse(&response.url)
+            .ok()
+            .map(|u| u.path().to_string())
+            != reqwest::Url::parse(url).ok().map(|u| u.path().to_string())
+        {
+            return Err(unsafe_artifact(
+                "La descarga redirigió a otra versión Telegram",
+            ));
+        }
+        let archive = work.join("release.tar.xz");
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&archive)?;
+        file.write_all(&response.bytes)?;
+        file.sync_all()?;
+        let payload = work.join("payload");
+        extract_telegram(&archive, &payload)?;
+        let mut telegram_hash = String::new();
+        for name in ["Telegram", "Updater"] {
+            user_file(&pinned_root.join(name))?;
+            verify_elf(&payload.join(name), ctx)?;
+            let hash = binary_hash(&payload.join(name))?;
+            if hash != binary_hash(&pinned_root.join(name))? {
+                return Err(AppError::new(
+                    ErrorCode::PlanChanged,
+                    "El binario instalado no coincide con esta publicación oficial. La versión sigue sin verificar; requiere revisar su procedencia antes de actualizar",
+                ));
+            }
+            if name == "Telegram" {
+                telegram_hash = hash;
+            }
+        }
+        let now_root = fs::metadata(&root)?;
+        let pinned = root_fd.metadata()?;
+        if now_root.dev() != pinned.dev() || now_root.ino() != pinned.ino() {
+            return Err(unsafe_artifact(
+                "Cambió el directorio Telegram durante la verificación",
+            ));
+        }
+        let record = pinned_root.join(".app-updates-version.json");
+        crate::store::check_plain(&record)?;
+        receipt(
+            &record,
+            &TelegramReceipt {
+                version: version.clone(),
+                binary_sha256: telegram_hash,
+            },
+        )?;
+        installed_version(&pinned_root)?.ok_or_else(|| {
+            AppError::new(
+                ErrorCode::PlanChanged,
+                "El binario cambió durante la verificación",
+            )
+        })
+    })();
+    let _ = fs::remove_dir_all(work);
+    result
+}
 pub fn activate_telegram(
     stage: &StagedTelegram,
     ctx: &ExecutionContext,

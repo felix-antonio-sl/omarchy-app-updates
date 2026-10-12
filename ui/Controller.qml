@@ -122,6 +122,10 @@ Item {
         enginePreparationRequested();
         bootstrap.prepare();
     }
+    function enrollTelegram(targetId) {
+        error = "";
+        request("enroll_telegram", {target_id: targetId});
+    }
     function acceptResponse(response) {
         if (!inflight || response.protocol_version !== 1 || response.request_id !== inflight.request_id) {
             error = "Respuesta de otra solicitud o protocolo incompatible";
@@ -140,7 +144,7 @@ Item {
         }
         var action = inflight.action;
         var value = response.result;
-        if (["status", "inventory", "check", "selection"].indexOf(action) >= 0) {
+        if (["status", "inventory", "check", "selection", "enroll_telegram"].indexOf(action) >= 0) {
             if (!value || !Array.isArray(value.apps) || !Array.isArray(value.checks)) {
                 error = "El reporte no tiene el formato esperado";
                 return;

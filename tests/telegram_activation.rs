@@ -6,7 +6,7 @@ use omarchy_app_updates::{
     paths::Paths,
     providers::{
         ProviderContext,
-        telegram::{TelegramReceipt, binary_hash},
+        telegram::{TelegramReceipt, binary_hash, installed_version},
     },
     store::Store,
 };
@@ -218,6 +218,34 @@ fn telegram_preserves_profile_launcher_and_previous_executables() {
             .raw,
         "2.0"
     );
+}
+#[test]
+fn existing_telegram_enrolls_only_when_both_binaries_match_the_pinned_official_release() {
+    for matches in [false, true] {
+        let d = tempfile::tempdir().unwrap();
+        let (ctx, app, _, processes) = fixture(d.path(), "", "2.0");
+        let root = d.path().join(".local/opt/telegram-desktop");
+        fs::remove_file(root.join(".app-updates-version.json")).unwrap();
+        if matches {
+            fs::write(root.join("Telegram"), elf(2)).unwrap();
+            fs::write(root.join("Updater"), elf(3)).unwrap();
+        }
+        let exec = ExecutionContext::new(ctx, "enroll-fixture".into(), &SilentSink)
+            .with_processes(processes.clone());
+        let enrolled = enroll_telegram(&app.components[0].id, "2.0", &exec);
+        if matches {
+            assert_eq!(enrolled.unwrap().raw, "2.0");
+            assert_eq!(installed_version(&root).unwrap().unwrap().raw, "2.0");
+        } else {
+            assert_eq!(enrolled.unwrap_err().code, ErrorCode::PlanChanged);
+            assert!(!root.join(".app-updates-version.json").exists());
+        }
+        assert!(processes.closed.lock().unwrap().is_empty());
+        assert_eq!(
+            fs::read(d.path().join(".local/share/TelegramDesktop/tdata/account")).unwrap(),
+            b"existing account"
+        );
+    }
 }
 #[test]
 fn telegram_rejects_traversal_and_external_links_before_activation() {

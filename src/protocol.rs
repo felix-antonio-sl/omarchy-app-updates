@@ -8,6 +8,7 @@ pub enum Action {
     Inventory,
     Status,
     EngineStatus,
+    EnrollTelegram,
     Check,
     Plan,
     Apply,
@@ -39,6 +40,11 @@ pub struct Response {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Empty {}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct EnrollmentPayload {
+    target_id: TargetId,
+}
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SelectionPayload {
@@ -96,6 +102,9 @@ pub fn decode_request(bytes: &[u8]) -> AppResult<Request> {
         ));
     }
     match req.action {
+        Action::EnrollTelegram => {
+            let _: EnrollmentPayload = serde_json::from_value(req.payload.clone())?;
+        }
         Action::Selection | Action::Plan => {
             let _: SelectionPayload = serde_json::from_value(req.payload.clone())?;
         }
@@ -129,6 +138,84 @@ pub fn dispatch(req: Request, paths: &Paths) -> AppResult<Response> {
 fn execute(req: &Request, paths: &Paths) -> AppResult<Value> {
     let store = Store::new(paths.clone());
     match &req.action {
+        Action::EnrollTelegram => {
+            let data: EnrollmentPayload = serde_json::from_value(req.payload.clone())?;
+            let mut report = store.load()?.report;
+            let policy = crate::policy::Policy::for_paths(paths)?;
+            report.apps = policy.visible(&report.apps);
+            let target = report
+                .apps
+                .iter()
+                .flat_map(|a| &a.components)
+                .find(|t| {
+                    t.id == data.target_id && matches!(t.locator, Locator::TelegramLocal { .. })
+                })
+                .ok_or_else(|| {
+                    AppError::new(
+                        ErrorCode::InvalidInput,
+                        "Instalación Telegram no disponible",
+                    )
+                })?
+                .clone();
+            let check = report
+                .checks
+                .iter()
+                .find(|c| {
+                    c.target_id == target.id
+                        && !c.stale
+                        && !crate::should_refresh(Some(c.checked_at), crate::now(), false)
+                })
+                .ok_or_else(|| {
+                    AppError::new(
+                        ErrorCode::PlanExpired,
+                        "Comprueba la publicación oficial antes de verificar el binario",
+                    )
+                })?;
+            let version = check
+                .available
+                .as_ref()
+                .filter(|v| v.kind == VersionKind::Product)
+                .ok_or_else(|| {
+                    AppError::new(
+                        ErrorCode::Unsupported,
+                        "No hay una publicación oficial verificada",
+                    )
+                })?;
+            let ctx = crate::execution::ExecutionContext::new(
+                crate::providers::ProviderContext::new(paths.clone()),
+                "telegram-enrollment".into(),
+                &crate::helper::SilentSink,
+            )
+            .with_report(report.clone());
+            let installed =
+                crate::execution::telegram::enroll_telegram(&target.id, &version.raw, &ctx)?;
+            Ok(serde_json::to_value(store.update(|s| {
+                for t in s
+                    .report
+                    .apps
+                    .iter_mut()
+                    .flat_map(|a| &mut a.components)
+                    .filter(|t| t.id == target.id && t.locator == target.locator)
+                {
+                    t.installed = Some(installed.clone());
+                }
+                if let Some(c) = s
+                    .report
+                    .checks
+                    .iter_mut()
+                    .find(|c| c.target_id == target.id)
+                {
+                    c.installed = Some(installed.clone());
+                    c.state = crate::providers::releases::classify(
+                        &installed,
+                        c.available.as_ref(),
+                        c.published.as_ref(),
+                    )?;
+                    c.details.retain(|d| !d.starts_with("No hay metadatos"));
+                }
+                Ok(s.report.clone())
+            })?)?)
+        }
         Action::EngineStatus => {
             crate::engine::verify_helper(paths)?;
             Ok(serde_json::json!({"ready":true,"metadata":crate::engine::metadata()}))
