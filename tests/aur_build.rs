@@ -351,6 +351,97 @@ fn aur_plan_includes_recipe_build_dependencies_and_requires_artifact_approval() 
     );
 }
 #[test]
+fn selected_split_outputs_build_once_and_attach_in_one_reviewed_step() {
+    use omarchy_app_updates::planner::build_plan_with_recipes;
+    use std::collections::BTreeMap;
+    let d = tempfile::tempdir().unwrap();
+    let (first, ctx, backend) = fixture(d.path(), false, false);
+    let mut recipe = prepare_aur(&first, &ctx).unwrap();
+    recipe.requested.push("sample-docs".into());
+    recipe.digest = recipe_digest(&recipe);
+    fs::write(
+        recipe.repository.join("review.json"),
+        serde_json::to_vec(&recipe).unwrap(),
+    )
+    .unwrap();
+    let (mut report, mut snapshot, policy, _) = common::fixture(d.path());
+    report.apps.clear();
+    report.checks.clear();
+    report.selected.clear();
+    snapshot.packages.clear();
+    snapshot.installed.clear();
+    let mut recipes = BTreeMap::new();
+    for name in ["sample-app", "sample-docs"] {
+        let target = Target {
+            id: format!("aur:{name}").into(),
+            locator: Locator::Aur {
+                package: name.into(),
+                base: "sample".into(),
+            },
+            installed: Some(Version::arch("1.0-1")),
+        };
+        let app = App {
+            id: target.id.0.clone().into(),
+            name: name.into(),
+            desktop_ids: vec![],
+            components: vec![target.clone()],
+            suggested: true,
+        };
+        report.selected.push(app.id.clone());
+        report.apps.push(app);
+        report.checks.push(Check {
+            target_id: target.id.clone(),
+            installed: target.installed.clone(),
+            available: Some(Version::arch("2.0-1")),
+            published: None,
+            checked_at: 100,
+            state: CheckState::UpdateAvailable,
+            stale: false,
+            source: Some("AUR".into()),
+            details: vec![],
+        });
+        recipes.insert(target.id, recipe.clone());
+    }
+    let plan =
+        build_plan_with_recipes(&report, &report.selected, &snapshot, &policy, 100, &recipes)
+            .unwrap();
+    let steps = plan
+        .steps
+        .iter()
+        .filter(|s| s.kind == StepKind::AurBuild)
+        .collect::<Vec<_>>();
+    assert_eq!(steps.len(), 1);
+    assert_eq!(steps[0].targets.len(), 2);
+    assert_eq!(steps[0].package_changes.len(), 2);
+    let artifacts = build_aur(
+        &recipe,
+        &ExecutionContext::new(ctx, "fixture".into(), &SilentSink),
+    )
+    .unwrap();
+    assert_eq!(artifacts.len(), 2);
+    let revised = attach_artifacts(&plan, &recipe, &artifacts, 200).unwrap();
+    assert_eq!(
+        revised
+            .steps
+            .iter()
+            .find(|s| s.kind == StepKind::AurBuild)
+            .unwrap()
+            .built_artifacts
+            .len(),
+        2
+    );
+    assert_eq!(
+        backend
+            .calls
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|c| c.program == Path::new("/usr/bin/makepkg"))
+            .count(),
+        1
+    );
+}
+#[test]
 fn dependency_recipes_are_resolved_transitively_and_cycles_need_review() {
     use std::collections::BTreeMap;
     let d = tempfile::tempdir().unwrap();

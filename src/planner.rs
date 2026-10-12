@@ -609,6 +609,38 @@ pub fn build_plan_with_flatpak(
             }
         }
     }
+    // Split outputs share one reviewed recipe and must be built/installed once.
+    let mut grouped: Vec<PlanStep> = vec![];
+    for step in steps {
+        let same = step.aur_recipe.as_ref().and_then(|r| {
+            grouped.iter_mut().find(|s| {
+                s.kind == StepKind::AurBuild
+                    && s.aur_recipe.as_ref().is_some_and(|old| {
+                        old.package_base == r.package_base
+                            && old.commit == r.commit
+                            && old.digest == r.digest
+                    })
+            })
+        });
+        if let Some(existing) = same {
+            existing.targets.extend(step.targets);
+            for change in step.package_changes {
+                if !existing
+                    .package_changes
+                    .iter()
+                    .any(|p| p.name == change.name)
+                {
+                    existing.package_changes.push(change);
+                }
+            }
+            existing.build_dependencies.extend(step.build_dependencies);
+            existing.build_dependencies.sort();
+            existing.build_dependencies.dedup();
+        } else {
+            grouped.push(step);
+        }
+    }
+    let mut steps = grouped;
     for (installation, targets) in flatpak_targets {
         let mut step = empty_step(
             StepKind::FlatpakUpdate,
