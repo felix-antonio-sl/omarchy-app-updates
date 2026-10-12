@@ -107,7 +107,23 @@ pub fn decode_request(bytes: &[u8]) -> AppResult<Request> {
     Ok(req)
 }
 pub fn dispatch(req: Request, paths: &Paths) -> AppResult<Response> {
-    let result = match req.action {
+    let result = execute(&req, paths);
+    Ok(Response {
+        protocol_version: 1,
+        request_id: req.request_id,
+        result: result.as_ref().ok().cloned(),
+        error: result.err(),
+    })
+}
+fn execute(req: &Request, paths: &Paths) -> AppResult<Value> {
+    let store = Store::new(paths.clone());
+    match &req.action {
+        Action::Status => {
+            let mut state = store.load()?;
+            let policy = crate::policy::Policy::for_paths(paths)?;
+            policy.filter_report(&mut state.report, &state.config)?;
+            Ok(serde_json::to_value(state.report)?)
+        }
         Action::Inventory => {
             let facts = crate::alpm::system_packages()?;
             let apps = crate::inventory::discover(
@@ -115,27 +131,42 @@ pub fn dispatch(req: Request, paths: &Paths) -> AppResult<Response> {
                 &facts,
                 &crate::io::command::CommandRunner::default(),
             )?;
-            let store = Store::new(paths.clone());
             let mut state = store.load()?;
+            let policy = crate::policy::Policy::for_paths(paths)?;
             state.report.apps = apps;
+            policy.filter_report(&mut state.report, &state.config)?;
+            if !state.config.initialized {
+                state.config.selected = state.report.selected.clone();
+                state.config.initialized = true;
+            }
             store.save(&state)?;
             Ok(serde_json::to_value(state.report)?)
         }
-        Action::Status => Ok(serde_json::to_value(
-            Store::new(paths.clone()).load()?.report,
-        )?),
-        Action::History => Ok(serde_json::to_value(
-            Store::new(paths.clone()).load()?.operations,
-        )?),
+        Action::Selection => {
+            let mut state = store.load()?;
+            let policy = crate::policy::Policy::for_paths(paths)?;
+            let data: SelectionPayload = serde_json::from_value(req.payload.clone())?;
+            let visible = policy.visible(&state.report.apps);
+            if data
+                .selected
+                .iter()
+                .any(|id| !visible.iter().any(|a| &a.id == id))
+            {
+                return Err(AppError::new(
+                    ErrorCode::InvalidInput,
+                    "La selección contiene aplicaciones excluidas o ausentes",
+                ));
+            }
+            state.config.selected = data.selected;
+            state.config.initialized = true;
+            policy.filter_report(&mut state.report, &state.config)?;
+            store.save(&state)?;
+            Ok(serde_json::to_value(state.report)?)
+        }
+        Action::History => Ok(serde_json::to_value(store.load()?.operations)?),
         _ => Err(AppError::new(
             ErrorCode::Unsupported,
             "Acción todavía no disponible",
         )),
-    };
-    Ok(Response {
-        protocol_version: 1,
-        request_id: req.request_id,
-        result: result.as_ref().ok().cloned(),
-        error: result.err(),
-    })
+    }
 }

@@ -1,0 +1,9 @@
+{
+  "codex": {"aliases":["codex","codex-cli"],"names":["Codex CLI"],"desktop_ids":[],"paths":[".local/share/mise/installs/codex"]},
+  "claude": {"aliases":["claude","claude-code"],"names":["Claude Code"],"desktop_ids":[],"paths":[".local/share/claude/versions",".local/bin/claude"]},
+  "antigravity": {"aliases":["agy","antigravity-cli"],"names":["Antigravity CLI"],"desktop_ids":[],"paths":[".local/bin/agy"]},
+  "opencode": {"aliases":["opencode"],"names":["OpenCode"],"desktop_ids":[],"paths":[".opencode/bin",".local/bin/opencode"]},
+  "hermes": {"aliases":["hermes","hermes-cli"],"names":["Hermes CLI"],"desktop_ids":[],"paths":[".hermes/hermes-agent",".local/bin/hermes"]},
+  "claude-desktop": {"aliases":["claude-desktop"],"names":["Claude","Claude Desktop"],"desktop_ids":["com.anthropic.Claude.desktop","claude-desktop.desktop"],"paths":[".local/lib/claude-desktop"]},
+  "chatgpt": {"aliases":["chatgpt","chatgpt-desktop","codex-desktop"],"names":["ChatGPT","Codex","Codex Desktop","ChatGPT Desktop"],"desktop_ids":["chatgpt.desktop","codex.desktop"],"paths":[".local/lib/chatgpt",".local/lib/chatgpt-desktop",".local/opt/chatgpt",".local/opt/chatgpt-desktop"]}
+}

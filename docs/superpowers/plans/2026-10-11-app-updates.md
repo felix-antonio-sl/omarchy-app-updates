@@ -246,18 +246,18 @@ produce `discover(paths: &Paths, facts: &[PackageFacts], io: &CommandRunner) -> 
 `Policy::selected(&self, apps: &[App], config: &UserConfig) -> AppResult<Vec<AppId>>`;
 `Policy::digest(&self) -> String`; consume `Coverage` definido en T1.
 
-- [ ] **1. Escribir `managed_tools_never_selected`**: siete destinos y alias
+- [x] **1. Escribir `managed_tools_never_selected`**: siete destinos y alias
   excluidos aun presentes en config; fuente Python se lee sin ejecutar un
   marcador; destino nuevo o sintaxis no reconocida produce `NeedsReview`;
   seleccionar app base es posible; Hermes Desktop independiente queda sin
   selección inicial y nunca autoriza su CLI; app retirada deja de contar.
-- [ ] **2. Ejecutar** `cargo test --test policy`: falla por Policy ausente.
-- [ ] **3. Implementar** lector limitado del literal TARGETS y mapa de rutas,
+- [x] **2. Ejecutar** `cargo test --test policy`: falla por Policy ausente.
+- [x] **3. Implementar** lector limitado del literal TARGETS y mapa de rutas,
   nombres y lanzadores, sin importar Python. Aplicar política al inventario,
   comprobaciones y cambios de selección; guardar config con Store de T1.
-- [ ] **4. Ejecutar** `cargo test --test policy`: PASS. Cambiar cobertura en una
+- [x] **4. Ejecutar** `cargo test --test policy`: PASS. Cambiar cobertura en una
   fixture bloquea planes de instalación sin consultar ninguna herramienta IA.
-- [ ] **5. Commit:** `feat: enforce AI updater exclusions and editable app selection`.
+- [x] **5. Commit:** `feat: enforce AI updater exclusions and editable app selection`.
 
 ### Task 5: Consultas de repositorios y AUR
 
