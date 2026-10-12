@@ -143,7 +143,7 @@ según la spec; el ejecutor administrativo vive en
 
 ## Tareas de implementación
 
-### T1: Contratos, CLI y persistencia verificables
+### Task 1: Contratos, CLI y persistencia verificables
 
 **Files:** crear `Cargo.toml`, `Cargo.lock`, `src/lib.rs`, `src/bin/app-updates.rs`,
 `src/domain/*.rs`, `src/{protocol,paths,store}.rs`, `tests/contract.rs`,
@@ -160,7 +160,7 @@ de Request son las operaciones de la spec, más `Worker`, `PrepareEngine` y
 El sobre usa `action` en snake_case y `payload` tipado por acción; respuestas
 usan `result` o `error`, nunca un campo de comandos libres.
 
-- [ ] **1. Preparar el crate mínimo para ejecutar y escribir `protocol_and_private_state`**
+- [x] **1. Preparar el crate mínimo para ejecutar y escribir `protocol_and_private_state`**
   en `tests/contract.rs`, con librería inicialmente vacía:
   JSON v2 y campos de acción desconocidos se rechazan; respuesta mantiene ID;
   guardar/cargar conserva selección; un archivo dañado devuelve error sin
@@ -172,15 +172,15 @@ usan `result` o `error`, nunca un campo de comandos libres.
   assert!(should_refresh(Some(100), 99, false));
   assert!(should_refresh(Some(100), 100, true));
   ```
-- [ ] **2. Ejecutar** `cargo test --test contract`: debe fallar por los contratos
+- [x] **2. Ejecutar** `cargo test --test contract`: debe fallar por los contratos
   ausentes, no por un Cargo.toml inválido; conservar esa evidencia antes de implementar.
-- [ ] **3. Implementar** las interfaces en sus archivos, binario con stdin JSON y
+- [x] **3. Implementar** las interfaces en sus archivos, binario con stdin JSON y
   stdout JSON, mensajes de diagnóstico en stderr, reemplazo atómico y esquema v1.
   Fijar licencia `GPL-3.0-or-later` y conservar avisos de dependencias.
-- [ ] **4. Ejecutar** `cargo test --test contract` y `cargo fmt --check`: deben pasar.
-- [ ] **5. Commit:** `feat: add app update contracts and private state`.
+- [x] **4. Ejecutar** `cargo test --test contract` y `cargo fmt --check`: deben pasar.
+- [x] **5. Commit:** `feat: add app update contracts and private state`.
 
-### T2: Integración de libalpm y lectura de paquetes
+### Task 2: Integración de libalpm y lectura de paquetes
 
 **Files:** crear `build.rs`, `native/alpm-wrapper.h`, `src/alpm/{mod,bindings,config,read}.rs`,
 `tests/alpm_read.rs`; modificar `Cargo.toml`, `Cargo.lock`, `src/lib.rs`.
@@ -212,7 +212,7 @@ inyectar procesos simulados mediante `CommandRunner::with_backend` en pruebas.
   con la libalpm 16.0.1 instalada; cualquier incompatibilidad bloquea mutaciones.
 - [ ] **5. Commit:** `feat: read Arch package facts through verified libalpm bindings`.
 
-### T3: Inventario XDG y catálogo de instalaciones
+### Task 3: Inventario XDG y catálogo de instalaciones
 
 **Files:** crear `src/inventory/{mod,desktop,ownership,catalog}.rs`,
 `tests/inventory.rs`, `tests/fixtures/desktop/`; modificar `src/lib.rs`, CLI.
@@ -236,7 +236,7 @@ produce `discover(paths: &Paths, facts: &[PackageFacts], io: &CommandRunner) -> 
   devolver solo datos y no abrir aplicaciones. Evidencia real en estado privado.
 - [ ] **5. Commit:** `feat: discover desktop applications and installation identities`.
 
-### T4: Exclusiones obligatorias y selección editable
+### Task 4: Exclusiones obligatorias y selección editable
 
 **Files:** crear `src/policy.rs`, `catalog/managed-exclusions.json`,
 `tests/policy.rs`; modificar `src/store.rs`, CLI.
@@ -259,7 +259,7 @@ produce `discover(paths: &Paths, facts: &[PackageFacts], io: &CommandRunner) -> 
   fixture bloquea planes de instalación sin consultar ninguna herramienta IA.
 - [ ] **5. Commit:** `feat: enforce AI updater exclusions and editable app selection`.
 
-### T5: Consultas de repositorios y AUR
+### Task 5: Consultas de repositorios y AUR
 
 **Files:** crear `src/providers/{mod,arch,aur}.rs`, `src/io/{mod,http}.rs`,
 `tests/package_checks.rs`; ampliar `src/io/command.rs`, `src/alpm/read.rs`.
@@ -288,7 +288,7 @@ validaciones HTTPS/host incluso sin una conexión de red real.
   deja intactos hashes y mtimes de la base sync del sistema.
 - [ ] **5. Commit:** `feat: check configured repositories and AUR without installing`.
 
-### T6: Identidad y proveedor Flatpak
+### Task 6: Identidad y proveedor Flatpak
 
 **Files:** crear `src/providers/flatpak.rs`, `src/execution/{mod,flatpak}.rs`,
 `tests/flatpak.rs`; ampliar `src/inventory/catalog.rs`.
@@ -312,7 +312,7 @@ OperationId y `emit: &dyn EventSink`; `EventSink::send(event: OperationEvent) ->
   GeForce NOW con su remoto oficial. No hacer una actualización para este check.
 - [ ] **5. Commit:** `feat: check and update scoped Flatpak references`.
 
-### T7: Publicaciones oficiales, Telegram, Steam y webapps
+### Task 7: Publicaciones oficiales, Telegram, Steam y webapps
 
 **Files:** crear `src/providers/{releases,telegram,steam,web}.rs`,
 `catalog/release-sources.json`, `tests/releases.rs`, `tests/fixtures/releases/`.
@@ -342,7 +342,7 @@ canal; Web vincula el navegador actual sin ejecutar el acceso.
   según el tipo de versión y devolver fuentes y fecha en Check.
 - [ ] **5. Commit:** `feat: distinguish official releases from installable app versions`.
 
-### T8: Planes, fingerprints y alcance de sistema
+### Task 8: Planes, fingerprints y alcance de sistema
 
 **Files:** crear `src/planner.rs`, `tests/plans.rs`; ampliar `src/domain/plan.rs`.
 
@@ -367,7 +367,7 @@ canal; Web vincula el navegador actual sin ejecutar el acceso.
   específicas de Omarchy son partes visibles del plan si corresponden.
 - [ ] **5. Commit:** `feat: prepare complete update plans and reject changed scopes`.
 
-### T9: Ejecutor administrativo y transacciones libalpm
+### Task 9: Ejecutor administrativo y transacciones libalpm
 
 **Files:** crear `src/bin/app-updates-helper.rs`, `src/helper/{mod,validate,staging,session}.rs`,
 `src/alpm/{transaction,callbacks}.rs`, `tests/helper.rs`, `tests/transactions.rs`.
@@ -414,7 +414,7 @@ y `release(&mut self) -> AppResult<()>`;
   PASS; confirmar contadores cero de commit en todos los rechazos.
 - [ ] **5. Commit:** `feat: authorize and confirm native package transactions`.
 
-### T10: Revisión y compilación AUR sin root
+### Task 10: Revisión y compilación AUR sin root
 
 **Files:** crear `src/execution/aur.rs`, `tests/aur_build.rs`; ampliar AurProvider,
 PlanStep y staging administrativo.
@@ -442,7 +442,7 @@ y digest; `build_aur(recipe: &AurRecipe, ctx: &ExecutionContext) -> AppResult<Ve
   sistema actualizado seguido de build fallido produce resultados por fase.
 - [ ] **5. Commit:** `feat: review pinned AUR recipes and build as the user`.
 
-### T11: Cambio de Telegram conservando su instalación y datos
+### Task 11: Cambio de Telegram conservando su instalación y datos
 
 **Files:** crear `src/execution/{telegram,reopen}.rs`, `tests/telegram_activation.rs`.
 
@@ -467,7 +467,7 @@ y digest; `build_aur(recipe: &AurRecipe, ctx: &ExecutionContext) -> AppResult<Ve
   escribe el perfil real ni abre Telegram para descubrir su versión.
 - [ ] **5. Commit:** `feat: update local Telegram while preserving account data`.
 
-### T12: Cliente Steam y estado de reapertura
+### Task 12: Cliente Steam y estado de reapertura
 
 **Files:** crear `src/execution/steam.rs`, `tests/steam_execution.rs`;
 ampliar `src/execution/reopen.rs`.
@@ -489,7 +489,7 @@ ampliar `src/execution/reopen.rs`.
   se registran por componente; el contador agrupa la aplicación.
 - [ ] **5. Commit:** `feat: verify Steam client updates and pending app reopen`.
 
-### T13: Coordinación, trabajos persistentes y recuperación
+### Task 13: Coordinación, trabajos persistentes y recuperación
 
 **Files:** crear `src/jobs/{mod,launch,worker,control,recovery}.rs`,
 `tests/jobs.rs`; ampliar CLI, ProviderContext, Store y ExecutionContext.
@@ -521,7 +521,7 @@ ampliar `src/execution/reopen.rs`.
   usando solo proveedor simulado que duerme brevemente y genera un recibo nuevo.
 - [ ] **5. Commit:** `feat: persist update jobs and recover verified operation state`.
 
-### T14: Panel nativo, selección, planes y errores
+### Task 14: Panel nativo, selección, planes y errores
 
 **Files:** crear `manifest.json`, `ui/*.qml`, `ui/ViewModel.js`,
 `tests/qml/tst_AppUpdates.qml`, `tests/fixtures/ui-report.json`.
@@ -551,7 +551,7 @@ el binario y bootstrap se referencian con rutas relativas verificadas al plugin.
   nuevos; clasificar avisos propios de imports del shell con evidencia.
 - [ ] **5. Commit:** `feat: add native Omarchy application update panel`.
 
-### T15: Preparación gráfica, instalación y retirada
+### Task 15: Preparación gráfica, instalación y retirada
 
 **Files:** crear `src/install.rs`, `packaging/PKGBUILD`,
 `packaging/org.korvo.app-updates.policy`, `tests/install.rs`;
@@ -593,7 +593,7 @@ de shell.json. `engine_compatible(plugin_version: &str, helper_version: &str, pr
   local antes de cualquier instalación. README explica que plugin add no compila.
 - [ ] **5. Commit:** `feat: prepare and install the Rust plugin through graphical auth`.
 
-### T16: Verificación completa y aceptación en Korax
+### Task 16: Verificación completa y aceptación en Korax
 
 **Files:** crear `scripts/verify.sh`, `tests/acceptance.rs`, `docs/validation.md`;
 actualizar README y seguimiento de este plan.

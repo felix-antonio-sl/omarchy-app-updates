@@ -4,7 +4,7 @@ Plugin de Omarchy Quattro para consultar y actualizar aplicaciones de escritorio
 seleccionadas por el usuario. Motor en Rust e interfaz nativa QML/Quickshell.
 
 Estado: especificación aprobada el 2026-10-11. El plan de implementación está
-preparado para revisión. La implementación y la instalación están pendientes.
+aprobado. La implementación está en curso; la instalación queda pendiente.
 
 - [Especificación](docs/superpowers/specs/2026-10-11-app-updates-design.md).
 - [Plan de implementación](docs/superpowers/plans/2026-10-11-app-updates.md).
