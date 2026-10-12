@@ -220,6 +220,10 @@ Item {
                             {
                                 id: "updates",
                                 name: "Actualizaciones"
+                            },
+                            {
+                                id: "problems",
+                                name: "Problemas"
                             }
                         ]
                         delegate: Ui.Button {

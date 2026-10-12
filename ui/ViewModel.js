@@ -13,6 +13,7 @@ function visibleRows(report, filter, query) {
   return array(report.apps).filter(function(app) {
     return !excluded(app) && (filter !== "selected" || array(report.selected).indexOf(app.id) >= 0)
       && (filter !== "updates" || updatable(report,app))
+      && (filter !== "problems" || checksFor(report,app).some(function(c) {return c.stale || ["unknown","unsupported"].indexOf(c.state)>=0}))
       && (!query || (app.name+" "+app.id).toLocaleLowerCase().indexOf(query)>=0)
   }).sort(function(a,b) {return String(a.name).localeCompare(String(b.name))})
 }

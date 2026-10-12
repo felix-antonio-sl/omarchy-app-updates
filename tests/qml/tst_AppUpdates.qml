@@ -126,6 +126,7 @@ TestCase {
         compare(VM.visibleRows(fake.report, "updates", "").length, 2);
         compare(VM.visibleRows(fake.report, "all", "whatsapp")[0].id, "web:whatsapp");
         compare(VM.visibleRows(fake.report, "selected", "").length, 3);
+        compare(VM.visibleRows(fake.report, "problems", "").length, 1);
     }
     function test_literal_text_stale_and_errors() {
         var text = findChild(body, "appName_repo:chrome");
