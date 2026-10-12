@@ -463,8 +463,51 @@ fn private_log(path: &Path, text: &str) -> AppResult<()> {
     Ok(())
 }
 pub fn built_artifacts(release: &Path) -> AppResult<EngineArtifacts> {
-    let engine = release.join("app-updates");
-    let helper = release.join("app-updates-helper");
+    use std::io::Write;
+    use std::os::unix::fs::OpenOptionsExt;
+    let pinned = release
+        .join(".app-updates-artifacts")
+        .join(uuid::Uuid::new_v4().to_string());
+    crate::store::private_dir(&pinned)?;
+    // Cargo hardlinks release binaries to deps/. Open the owned build outputs
+    // without following links, then pin independent files before inspecting them.
+    for name in ["app-updates", "app-updates-helper"] {
+        let fd = rustix::fs::openat2(
+            rustix::fs::CWD,
+            release.join(name),
+            rustix::fs::OFlags::RDONLY | rustix::fs::OFlags::CLOEXEC | rustix::fs::OFlags::NONBLOCK,
+            rustix::fs::Mode::empty(),
+            rustix::fs::ResolveFlags::NO_SYMLINKS | rustix::fs::ResolveFlags::NO_MAGICLINKS,
+        )
+        .map_err(|_| {
+            AppError::new(
+                ErrorCode::UnsafeArtifact,
+                "Artefacto de compilación enlazado",
+            )
+        })?;
+        let mut input = fs::File::from(fd);
+        let meta = input.metadata()?;
+        if !meta.is_file()
+            || meta.uid() != rustix::process::geteuid().as_raw()
+            || meta.mode() & 0o022 != 0
+            || meta.len() > 128 * 1024 * 1024
+        {
+            return Err(AppError::new(
+                ErrorCode::UnsafeArtifact,
+                "Artefacto de compilación no seguro",
+            ));
+        }
+        let mut output = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o700)
+            .open(pinned.join(name))?;
+        std::io::copy(&mut input, &mut output)?;
+        output.flush()?;
+        output.sync_all()?;
+    }
+    let engine = pinned.join("app-updates");
+    let helper = pinned.join("app-updates-helper");
     validate_tree(&engine)?;
     validate_tree(&helper)?;
     let metadata = crate::engine::inspect(&engine)?;

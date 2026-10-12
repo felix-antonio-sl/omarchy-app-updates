@@ -170,6 +170,31 @@ fn missing_lockfile_and_version_mismatch_block_preparation() {
     assert!(install::engine_compatible("0.1.0", "0.1.0", 1, 16));
 }
 #[test]
+fn cargo_hardlinked_outputs_are_pinned_as_independent_private_artifacts() {
+    use std::os::unix::fs::MetadataExt;
+    let d = tempfile::tempdir().unwrap();
+    let release = d.path().join("release");
+    fs::create_dir(&release).unwrap();
+    for (name, source) in [
+        ("app-updates", env!("CARGO_BIN_EXE_app-updates")),
+        (
+            "app-updates-helper",
+            env!("CARGO_BIN_EXE_app-updates-helper"),
+        ),
+    ] {
+        fs::copy(source, release.join(name)).unwrap();
+        fs::hard_link(
+            release.join(name),
+            release.join(format!("{name}.cargo-alias")),
+        )
+        .unwrap();
+    }
+    let pinned = install::built_artifacts(&release).unwrap();
+    assert_ne!(pinned.engine, release.join("app-updates"));
+    assert_eq!(fs::metadata(pinned.engine).unwrap().nlink(), 1);
+    assert_eq!(fs::metadata(pinned.helper).unwrap().nlink(), 1);
+}
+#[test]
 fn active_job_blocks_plugin_replacement_and_removal() {
     let d = tempfile::tempdir().unwrap();
     let paths = Paths::for_home(d.path().join("home"));
