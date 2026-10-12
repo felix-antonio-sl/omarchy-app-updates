@@ -603,30 +603,30 @@ mutar instalaciones de apps; `acceptance.rs` usa adaptadores simulados y paths
 temporales. Evidencia real va a `~/.local/state/omarchy-app-updates/acceptance/`;
 el informe Git solo conserva conclusiones sanitizadas y limitaciones.
 
-- [ ] **1. Escribir `whole_flow_in_isolated_environment`**: descubrir, excluir,
+- [x] **1. Escribir `whole_flow_in_isolated_environment`**: descubrir, excluir,
   seleccionar, comprobar, preparar, aceptar, observar y verificar un trabajo;
   cambiar alcance exige revisión; cerrar UI no cancela; perfil inmutable y resultado
   correlacionado; Unsupported no instala. Ejecutar antes del ensamblaje final y
   confirmar el fallo que falta resolver.
-- [ ] **2. Integrar** CLI/proveedores/jobs/UI y resolver fallos del flujo, sin
+- [x] **2. Integrar** CLI/proveedores/jobs/UI y resolver fallos del flujo, sin
   saltarse políticas ni convertir errores en éxito para completar la prueba.
-- [ ] **3. Ejecutar** `scripts/verify.sh`: cargo fmt, cargo test, clippy, validación
+- [x] **3. Ejecutar** `scripts/verify.sh`: cargo fmt, cargo test, clippy, validación
   de manifiesto, qmllint y QtTest deben pasar. `git diff --check` debe quedar vacío.
-- [ ] **4. Instalar y validar** el conjunto preparado en Korax; backup previo de
+- [x] **4. Instalar y validar** el conjunto preparado en Korax; backup previo de
   shell.json y componentes propios; comprobar plugin enabled, configerrors y
   logs nuevos. Abrir/cerrar por clic, Escape e IPC; probar búsqueda, selección,
   Check, detalle, plan y rechazo. Capturar únicamente el panel con datos de apps
   para aceptación visual, sin conversaciones ni perfiles. Probar disable/enable
   y restart shell; restaurar widget si aparece regresión.
-- [ ] **5. Verificar** recibos y estado por app. Actualización real solo si hay
+- [x] **5. Verificar** recibos y estado por app. Actualización real solo si hay
   versión nueva y se acepta su plan gráfico; nunca degradar para producir prueba.
   Si no hay pendiente, dejar esa prueba marcada como no ejercitada y conservar
   pruebas del ejecutor simulado. Confirmar destinos IA sin consultas ni cambios
   por el plugin, perfiles conservados y ausencia de cierres automáticos.
-- [ ] **6. Solicitar** revisión independiente del cambio completo usando el método
+- [x] **6. Solicitar** revisión independiente del cambio completo usando el método
   aprobado y el spec/plan como referencia; resolver hallazgos y repetir solo los
   checks afectados. Integrar en main con commits enfocados tras validación.
-- [ ] **7. Commit:** `test: verify app update workflows and Omarchy installation`.
+- [x] **7. Commit:** `test: verify app update workflows and Omarchy installation`.
 
 ## Cobertura y revisión del plan
 
@@ -668,5 +668,7 @@ por completo; toda limitación real queda en UI, recibo e informe final.
 - `omarchy-update-lock` instalado usa flock sobre
   `${XDG_RUNTIME_DIR}/omarchy-update.lock`; conservar el mismo bloqueo de sesión.
 
-Estado: plan preparado para revisión; ejecución pendiente. Este documento no
-afirma que los tests, binarios, helper ni plugin estén implementados o instalados.
+Estado: implementación, revisión, instalación y aceptación en Korax completadas
+el 12 de octubre de 2026. Las pruebas reales de actualización de apps pendientes
+no se ejercitaron: la selección consultada no tenía versiones instalables nuevas.
+La evidencia y sus límites están en ../../validation.md.

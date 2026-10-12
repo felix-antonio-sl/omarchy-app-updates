@@ -5,8 +5,10 @@ actualizaciones disponibles en tu canal y las publicaciones del fabricante.
 El motor está escrito en Rust; la interfaz utiliza QML y los componentes del
 shell. La lista de aplicaciones es editable y conserva tu selección.
 
-Implementación y validación en curso. El motor, el panel y el instalador están
-implementados; la aceptación y la instalación final en Korax siguen pendientes.
+Instalado y validado en Korax el 12 de octubre de 2026. El motor Rust y el
+ejecutor administrativo comparten versión, protocolo, fuentes y ABI verificadas.
+La [evidencia de validación](docs/validation.md) describe los tests y las pruebas
+del panel dentro del shell real.
 
 Abre **Apps** en la barra y usa **Comprobar** para consultar las fuentes. El
 contador agrupa aplicaciones, aunque tengan varios componentes, como el
@@ -47,7 +49,15 @@ Añadir o clonar un repositorio mediante Omarchy solo descarga y valida el plugi
 no compila Rust ni instala el ejecutor. La preparación es una acción explícita.
 Los requisitos de compilación son Rust estable, Cargo, Clang, pkg-config y los
 headers de libalpm, libflatpak y libarchive ya instalados. La preparación evita
-reemplazar el plugin mientras haya trabajos activos.
+reemplazar el plugin mientras haya trabajos activos. Los binarios producidos por
+Cargo se fijan como copias privadas independientes antes de validarlos; la
+activación espera a que el catálogo asíncrono de Omarchy registre el plugin.
+
+Si una instalación local de Telegram carece de metadatos, usa Comprobar →
+Detalles → Verificar binario de Telegram. La acción descarga la publicación
+oficial fija y compara Telegram y Updater con los archivos instalados, sin
+abrir ni reemplazar la app. Solo asocia una versión cuando ambos coinciden;
+si no coinciden, informa que debe revisarse la procedencia.
 
 La instalación prepara un conjunto completo de archivos en staging, conserva
 la versión anterior y respalda `shell.json`; la activación usa el gestor de
