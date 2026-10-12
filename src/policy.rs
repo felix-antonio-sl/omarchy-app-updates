@@ -25,23 +25,33 @@ pub struct Policy {
 }
 impl Policy {
     pub fn load(updater_source: &Path, catalog: &Path) -> AppResult<Self> {
-        let rules: BTreeMap<String, Rule> = serde_json::from_str(BUILTIN)?;
         let source = fs::read_to_string(updater_source).ok();
-        let source_hash = format!(
-            "{:x}",
-            Sha256::digest(source.as_deref().unwrap_or("").as_bytes())
-        );
-        let parsed = source.as_deref().and_then(|s| parse_targets(s).ok());
+        let catalog_bytes = match fs::read(catalog) {
+            Ok(bytes) => Some(bytes),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+            Err(_) => Some(vec![]),
+        };
+        let home = updater_source
+            .ancestors()
+            .nth(4)
+            .unwrap_or(Path::new("/nonexistent"))
+            .to_path_buf();
+        Self::from_contents(home, source.as_deref(), catalog_bytes.as_deref())
+    }
+    pub fn from_contents(
+        home: PathBuf,
+        source: Option<&str>,
+        catalog: Option<&[u8]>,
+    ) -> AppResult<Self> {
+        let rules: BTreeMap<String, Rule> = serde_json::from_str(BUILTIN)?;
+        let source_hash = format!("{:x}", Sha256::digest(source.unwrap_or("").as_bytes()));
+        let parsed = source.and_then(|s| parse_targets(s).ok());
         let source_targets = parsed.clone().unwrap_or_default();
         let known = rules.keys().cloned().collect::<BTreeSet<_>>();
         let observed = source_targets.iter().cloned().collect::<BTreeSet<_>>();
-        let catalog_good = match fs::read(catalog) {
-            Ok(bytes) => {
-                serde_json::from_slice::<BTreeMap<String, Rule>>(&bytes).is_ok_and(|r| r == rules)
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => true,
-            Err(_) => false,
-        };
+        let catalog_good = catalog.is_none_or(|bytes| {
+            serde_json::from_slice::<BTreeMap<String, Rule>>(bytes).is_ok_and(|r| r == rules)
+        });
         let coverage = if parsed.is_some() && known == observed && catalog_good {
             Coverage::Verified
         } else {
@@ -52,11 +62,6 @@ impl Policy {
                 unknown: observed.difference(&known).cloned().collect(),
             }
         };
-        let home = updater_source
-            .ancestors()
-            .nth(4)
-            .unwrap_or(Path::new("/nonexistent"))
-            .to_path_buf();
         Ok(Self {
             coverage,
             home,

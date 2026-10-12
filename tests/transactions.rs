@@ -438,3 +438,51 @@ fn native_provider_callback_waits_for_matching_explicit_choice() {
     assert_eq!(prepared.decisions.len(), 1);
     native.release().unwrap();
 }
+
+#[test]
+fn preview_uses_the_open_handle_database_instead_of_original_configuration_path() {
+    use omarchy_app_updates::{
+        alpm::{AlpmConfig, transaction::AlpmTransaction},
+        io::command::CommandRunner,
+    };
+    let d = tempfile::tempdir().unwrap();
+    let (_, plan, db, _) = native_fixture(d.path(), false);
+    let cfgpath = d.path().join("pacman.conf");
+    std::fs::create_dir(d.path().join("absent")).unwrap();
+    let text = std::fs::read_to_string(&cfgpath).unwrap().replace(
+        &format!("DBPath = {}", db.display()),
+        &format!("DBPath = {}", d.path().join("absent").display()),
+    );
+    std::fs::write(&cfgpath, text).unwrap();
+    let cfg = AlpmConfig::load(&cfgpath, &CommandRunner::default()).unwrap();
+    let (_, policy, _) = common::plan(d.path());
+    let mut t = AlpmTransaction::preview(cfg, db, policy, "fixture-op".into()).unwrap();
+    let actual = t.prepare(&plan).unwrap();
+    assert!(
+        actual.steps[0]
+            .package_changes
+            .iter()
+            .any(|p| p.name == "ghostty" && p.old_version.as_deref() == Some("1.0-1"))
+    );
+    assert_ne!(
+        actual.repository_digest,
+        omarchy_app_updates::planner::repository_digest(&common::fixture(d.path()).1)
+    );
+    use sha2::{Digest, Sha256};
+    let cfg = AlpmConfig::load(&cfgpath, &CommandRunner::default()).unwrap();
+    let reader = omarchy_app_updates::alpm::AlpmReader::open(&cfg, &d.path().join("db")).unwrap();
+    let expected = omarchy_app_updates::providers::arch::RepoSnapshot {
+        repositories: cfg.repos.clone(),
+        config_digest: format!("{:x}", Sha256::digest(serde_json::to_vec(&cfg).unwrap())),
+        packages: reader.available(&d.path().join("db/sync")).unwrap(),
+        installed: reader.installed().unwrap(),
+        fingerprint: String::new(),
+        dbpath: d.path().join("db"),
+        created_at: 100,
+    };
+    assert!(!expected.packages.is_empty());
+    assert_eq!(
+        actual.repository_digest,
+        omarchy_app_updates::planner::repository_digest(&expected)
+    );
+}

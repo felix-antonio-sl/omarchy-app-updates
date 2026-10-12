@@ -42,6 +42,7 @@ pub fn validate_caller(
     Err(invalid())
 }
 pub fn caller() -> AppResult<Caller> {
+    trusted_root_path(Path::new("/etc/passwd"))?;
     let passwd = std::fs::read_to_string("/etc/passwd")?;
     validate_caller(
         rustix::process::geteuid().as_raw(),

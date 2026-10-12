@@ -388,7 +388,7 @@ trait `PackageTransaction` con
 y `release(&mut self) -> AppResult<()>`;
 `AlpmTransaction` implementa el trait. `stage_artifact(path: &Path, expected: &str, caller_uid: u32) -> AppResult<PathBuf>` copia y verifica en staging root.
 
-- [ ] **1. Escribir `privileged_boundary_and_transaction_decisions`**: request
+- [x] **1. Escribir `privileged_boundary_and_transaction_decisions`**: request
   desconocido, código ABI incompatible, path de usuario para programa auxiliar,
   symlink en staging, checksum sustituido y root sin caller válido se rechazan;
   preparar no instala; plan revisado no confirma con digest anterior; pregunta
@@ -398,9 +398,9 @@ y `release(&mut self) -> AppResult<()>`;
   Cancelar polkit devuelve Cancelled sin commit ni resultado histórico exitoso.
   Configuración administrativa recibida desde rutas de usuario se rechaza;
   la operación se enlaza desde Prepare y no admite Confirm de otro ID.
-- [ ] **2. Ejecutar** `cargo test --test helper --test transactions`: FAIL con
+- [x] **2. Ejecutar** `cargo test --test helper --test transactions`: FAIL con
   motor administrativo simulado, nunca usando una transacción real del host.
-- [ ] **3. Implementar** interfaces, lectura solo de configuración root confiable,
+- [x] **3. Implementar** interfaces, lectura solo de configuración root confiable,
   locks Omarchy/pacman, caller de pkexec y polkit sin agente textual fallback.
   Conservar SigLevel/GPGDir, hooks normales de pacman, configuración y razones
   de instalación. No permitir nodeps, dbonly, overwrite arbitrario o degradación.
@@ -410,9 +410,9 @@ y `release(&mut self) -> AppResult<()>`;
   Snapshot antes de cambios; informar ausencia/fallo. Migraciones de Omarchy
   aprobadas y compatibles se ejecutan por ID fijo; si no puede preservarse la
   exclusión, detener con detalle. No ejecutar `omarchy update` completo.
-- [ ] **4. Ejecutar** tests de T9 y `cargo clippy --all-targets -- -D warnings`:
+- [x] **4. Ejecutar** tests de T9 y `cargo clippy --all-targets -- -D warnings`:
   PASS; confirmar contadores cero de commit en todos los rechazos.
-- [ ] **5. Commit:** `feat: authorize and confirm native package transactions`.
+- [x] **5. Commit:** `feat: authorize and confirm native package transactions`.
 
 ### Task 10: Revisión y compilación AUR sin root
 

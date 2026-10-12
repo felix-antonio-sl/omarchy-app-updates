@@ -72,7 +72,7 @@ pub fn signature_level(words: &[String], base: u32) -> AppResult<u32> {
     }
     Ok(value)
 }
-fn checked(reader: &AlpmReader, result: i32) -> AppResult<()> {
+pub(crate) fn checked(reader: &AlpmReader, result: i32) -> AppResult<()> {
     if result == 0 {
         Ok(())
     } else {
@@ -253,8 +253,13 @@ pub struct AlpmTransaction {
     pub(crate) policy: Policy,
     pub(crate) active: bool,
     pub(crate) prepared: Option<UpdatePlan>,
+    pub(crate) root: Option<crate::helper::system::RootContext>,
+    pub(crate) installing: bool,
 }
 impl AlpmTransaction {
+    pub fn policy(&self) -> Policy {
+        self.policy.clone()
+    }
     pub fn preview(
         config: AlpmConfig,
         dbpath: PathBuf,
@@ -273,11 +278,40 @@ impl AlpmTransaction {
             policy,
             active: false,
             prepared: None,
+            root: None,
+            installing: false,
         };
         transaction.register_callbacks()?;
         Ok(transaction)
     }
-    fn register_callbacks(&self) -> AppResult<()> {
+    pub fn system(
+        caller: crate::helper::validate::Caller,
+        operation: OperationId,
+        sink: Arc<dyn EventSink>,
+    ) -> AppResult<Self> {
+        let (root, policy) = crate::helper::system::RootContext::acquire(caller, &operation)?;
+        let reader = AlpmReader::open(&root.config, &root.database)?;
+        checked(&reader, unsafe {
+            ffi::alpm_option_add_cachedir(
+                reader.handle.as_ptr(),
+                cstring(&root.cache.to_string_lossy())?.as_ptr(),
+            )
+        })?;
+        configure(&reader)?;
+        let callback = Box::new(Mutex::new(CallbackState::new(operation, sink)));
+        let transaction = Self {
+            reader,
+            callback,
+            policy,
+            active: false,
+            prepared: None,
+            root: Some(root),
+            installing: false,
+        };
+        transaction.register_callbacks()?;
+        Ok(transaction)
+    }
+    pub(crate) fn register_callbacks(&self) -> AppResult<()> {
         let ctx = (&*self.callback as *const Mutex<CallbackState>)
             .cast_mut()
             .cast();
@@ -310,9 +344,10 @@ impl AlpmTransaction {
         Ok(())
     }
     pub(crate) fn snapshot(&self) -> AppResult<RepoSnapshot> {
-        let packages = self
-            .reader
-            .available(&self.reader.config.dbpath.join("sync"))?;
+        let dbpath = PathBuf::from(unsafe {
+            ctext(ffi::alpm_option_get_dbpath(self.reader.handle.as_ptr()))
+        });
+        let packages = self.reader.available(&dbpath.join("sync"))?;
         let installed = self.reader.installed()?;
         use sha2::{Digest, Sha256};
         Ok(RepoSnapshot {
@@ -324,11 +359,11 @@ impl AlpmTransaction {
             packages,
             installed,
             fingerprint: String::new(),
-            dbpath: self.reader.config.dbpath.clone(),
+            dbpath,
             created_at: crate::now(),
         })
     }
-    fn release_active(&mut self) -> AppResult<()> {
+    pub(crate) fn release_active(&mut self) -> AppResult<()> {
         if self.active {
             self.active = false;
             checked(&self.reader, unsafe {
@@ -337,9 +372,11 @@ impl AlpmTransaction {
         }
         Ok(())
     }
-    fn awaiting_question(&mut self) -> AppResult<()> {
+    pub(crate) fn awaiting_question(&mut self) -> AppResult<()> {
         if self.pending_question().is_some() {
-            self.release_active()?;
+            if !self.installing {
+                self.release_active()?;
+            }
             Err(AppError::new(
                 ErrorCode::Busy,
                 "Se necesita una decisión explícita",
@@ -374,6 +411,7 @@ impl PackageTransaction for AlpmTransaction {
                 )
             })?
             .pending = None;
+        self.prepare_system()?;
         let snapshot = self.snapshot()?;
         let selected = approved
             .steps
@@ -399,12 +437,16 @@ impl PackageTransaction for AlpmTransaction {
                 ));
             }
         }
-        checked(&self.reader, unsafe {
-            ffi::alpm_trans_init(
-                self.reader.handle.as_ptr(),
-                ffi::ALPM_TRANS_FLAG_NOLOCK as i32,
-            )
-        })?;
+        if !self.installing {
+            let flags = if self.root.is_some() {
+                ffi::ALPM_TRANS_FLAG_DOWNLOADONLY
+            } else {
+                ffi::ALPM_TRANS_FLAG_NOLOCK
+            };
+            checked(&self.reader, unsafe {
+                ffi::alpm_trans_init(self.reader.handle.as_ptr(), flags as i32)
+            })?;
+        }
         self.active = true;
         let result = unsafe { ffi::alpm_sync_sysupgrade(self.reader.handle.as_ptr(), 0) };
         self.awaiting_question()?;
@@ -519,9 +561,37 @@ impl PackageTransaction for AlpmTransaction {
             }
         }
         validate_resolved_packages(&resolved, &self.policy)?;
+        self.verify_downloads()?;
+        self.awaiting_question()?;
         changes.sort_by(|a, b| a.name.cmp(&b.name));
         let mut plan = approved.clone();
         plan.repository_digest = repository_digest(&snapshot);
+        if let Some(root) = &mut self.root {
+            root.snapshot();
+            if root.snapshot_warning {
+                let pending = self
+                    .callback
+                    .lock()
+                    .map_err(|_| {
+                        AppError::new(
+                            ErrorCode::TransactionFailed,
+                            "Canal de decisiones no disponible",
+                        )
+                    })?
+                    .question(
+                        "snapshot_unavailable",
+                        root.snapshot_notices.join("\n"),
+                        vec!["approve".into(), "reject".into()],
+                    );
+                let _ = pending;
+            }
+            for notice in &root.snapshot_notices {
+                if !plan.notices.contains(notice) {
+                    plan.notices.push(notice.clone());
+                }
+            }
+        }
+        self.awaiting_question()?;
         plan.steps
             .iter_mut()
             .find(|s| s.kind == StepKind::ArchFull)
@@ -551,11 +621,8 @@ impl PackageTransaction for AlpmTransaction {
         self.prepared = Some(plan.clone());
         Ok(plan)
     }
-    fn commit(&mut self, _: &str, _: &dyn EventSink) -> AppResult<Vec<TargetResult>> {
-        Err(AppError::new(
-            ErrorCode::AuthUnavailable,
-            "Una vista previa no puede instalar paquetes",
-        ))
+    fn commit(&mut self, digest: &str, sink: &dyn EventSink) -> AppResult<Vec<TargetResult>> {
+        self.commit_system(digest, sink)
     }
     fn release(&mut self) -> AppResult<()> {
         self.release_active()

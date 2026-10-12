@@ -2,6 +2,7 @@ pub(crate) mod bindings;
 mod callbacks;
 mod config;
 mod read;
+mod system_transaction;
 pub mod transaction;
 use crate::domain::*;
 pub use config::*;

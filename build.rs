@@ -1,4 +1,40 @@
 fn main() {
+    use sha2::{Digest, Sha256};
+    fn gather(path: &std::path::Path, files: &mut Vec<std::path::PathBuf>) {
+        println!("cargo:rerun-if-changed={}", path.display());
+        if path.is_dir() {
+            for entry in std::fs::read_dir(path).unwrap() {
+                gather(&entry.unwrap().path(), files);
+            }
+        } else if path.is_file() {
+            files.push(path.into());
+        }
+    }
+    let mut files = vec![];
+    for path in [
+        "src",
+        "native",
+        "catalog",
+        "Cargo.toml",
+        "Cargo.lock",
+        "build.rs",
+    ] {
+        gather(std::path::Path::new(path), &mut files);
+    }
+    files.sort();
+    let mut hash = Sha256::new();
+    for path in files {
+        let name = path.to_str().unwrap().as_bytes();
+        let bytes = std::fs::read(&path).unwrap();
+        hash.update((name.len() as u64).to_le_bytes());
+        hash.update(name);
+        hash.update((bytes.len() as u64).to_le_bytes());
+        hash.update(bytes);
+    }
+    println!(
+        "cargo:rustc-env=APP_UPDATES_SOURCE_DIGEST={:x}",
+        hash.finalize()
+    );
     println!("cargo:rerun-if-changed=native/alpm-wrapper.h");
     println!("cargo:rerun-if-changed=/usr/include/alpm.h");
     let lib = pkg_config::Config::new()
