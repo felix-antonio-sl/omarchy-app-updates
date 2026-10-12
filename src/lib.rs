@@ -1,4 +1,6 @@
+pub mod alpm;
 pub mod domain;
+pub mod io;
 pub mod paths;
 pub mod protocol;
 pub mod store;

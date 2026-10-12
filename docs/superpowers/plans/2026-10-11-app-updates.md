@@ -198,19 +198,19 @@ stdout y stderr. Crear aquí esa abstracción, ampliada en T5.
 `CommandBackend::run(&self, spec: &CommandSpec) -> AppResult<Captured>` permite
 inyectar procesos simulados mediante `CommandRunner::with_backend` en pruebas.
 
-- [ ] **1. Escribir `native_abi_and_package_read`**: comparar `1:1.4.43-3` con
+- [x] **1. Escribir `native_abi_and_package_read`**: comparar `1:1.4.43-3` con
   `1.4.44-1` respeta epoch; revisión `1.3.1-2` supera `1.3.1-1`; leer una base
   sintética sin tocar `/var/lib/pacman`; propietario por archivo correcto;
   `Include` y orden de repositorios se preservan; discrepancia de ABI se rechaza.
-- [ ] **2. Ejecutar** `cargo test --test alpm_read`: falla por interfaces ausentes.
-- [ ] **3. Implementar** generación de bindings del header instalado con bindgen
+- [x] **2. Ejecutar** `cargo test --test alpm_read`: falla por interfaces ausentes.
+- [x] **3. Implementar** generación de bindings del header instalado con bindgen
   y wrappers RAII en `src/alpm/`, con `unsafe` limitado a este módulo. Consultar
   configuración con `/usr/bin/pacman-conf`; no sustituirla por un parser incompleto.
   Comparar major de ABI compilada y cargada antes de abrir un handle. No adoptar
   `alpm 5.0.2` suponiendo soporte de libalpm 16: su documentación declara 15.
-- [ ] **4. Ejecutar** `cargo test --test alpm_read`: PASS. Prueba de solo lectura
+- [x] **4. Ejecutar** `cargo test --test alpm_read`: PASS. Prueba de solo lectura
   con la libalpm 16.0.1 instalada; cualquier incompatibilidad bloquea mutaciones.
-- [ ] **5. Commit:** `feat: read Arch package facts through verified libalpm bindings`.
+- [x] **5. Commit:** `feat: read Arch package facts through verified libalpm bindings`.
 
 ### Task 3: Inventario XDG y catálogo de instalaciones
 

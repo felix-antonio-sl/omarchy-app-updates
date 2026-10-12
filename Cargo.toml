@@ -11,6 +11,10 @@ serde_json = "1"
 sha2 = "0.10"
 uuid = { version = "1", features = ["v4", "serde"] }
 
+[build-dependencies]
+bindgen = "0.73"
+pkg-config = "0.3"
+
 [dev-dependencies]
 tempfile = "3"
 
