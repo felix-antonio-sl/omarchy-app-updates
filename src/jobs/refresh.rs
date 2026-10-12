@@ -357,7 +357,14 @@ pub fn merge_inventory(report: &mut Report, mut apps: Vec<App>) {
             {
                 target.locator = old.locator.clone();
             }
-            if target.locator == old.locator && target.installed.is_none() {
+            if target.locator == old.locator
+                && (target.installed.is_none()
+                    || target
+                        .installed
+                        .as_ref()
+                        .zip(old.installed.as_ref())
+                        .is_some_and(|(a, b)| a.raw == b.raw && a.kind == b.kind))
+            {
                 target.installed = old.installed.clone();
             }
             if target.locator != old.locator || target.installed != old.installed {

@@ -595,3 +595,30 @@ fn reopening_inventory_preserves_cached_local_versions_and_invalidates_changed_p
     assert_eq!(report.checked_at, None);
     assert!(report.checks[0].stale);
 }
+#[test]
+fn inventory_refresh_keeps_product_annotations_without_invalidating_unchanged_package_cache() {
+    let d = tempfile::tempdir().unwrap();
+    let (mut report, _, _, _) = common::fixture(d.path());
+    let mut discovered = report.apps.clone();
+    report.apps[0].components[0]
+        .installed
+        .as_mut()
+        .unwrap()
+        .product = Some("1.0".into());
+    omarchy_app_updates::jobs::refresh::merge_inventory(&mut report, discovered.clone());
+    assert_eq!(report.checked_at, Some(100));
+    assert!(!report.checks[0].stale);
+    assert_eq!(
+        report.apps[0].components[0]
+            .installed
+            .as_ref()
+            .unwrap()
+            .product
+            .as_deref(),
+        Some("1.0")
+    );
+    discovered[0].components[0].installed = Some(Version::arch("1.1-1"));
+    omarchy_app_updates::jobs::refresh::merge_inventory(&mut report, discovered);
+    assert_eq!(report.checked_at, None);
+    assert!(report.checks[0].stale);
+}
