@@ -2,7 +2,6 @@ use crate::{
     domain::*,
     execution::ExecutionContext,
     providers::telegram::{TelegramReceipt, binary_hash, installed_version},
-    store::Store,
 };
 use std::{
     collections::BTreeSet,
@@ -80,9 +79,8 @@ fn root_for_step(step: &PlanStep, ctx: &ExecutionContext) -> AppResult<PathBuf> 
             "El paso no corresponde a una instalación Telegram",
         ));
     }
-    let state = Store::new(ctx.paths.clone()).load()?;
-    let root = state
-        .report
+    let report = ctx.report()?;
+    let root = report
         .apps
         .iter()
         .flat_map(|a| &a.components)

@@ -435,6 +435,7 @@ pub fn build_aur(recipe: &AurRecipe, ctx: &ExecutionContext) -> AppResult<Vec<Bu
     ]);
     spec.cwd = Some(checkout);
     spec.timeout = Duration::from_secs(7200);
+    spec.cancellation = ctx.cancellation.clone();
     for (key, path) in [
         ("PKGDEST", &artifacts),
         ("SRCDEST", &source),

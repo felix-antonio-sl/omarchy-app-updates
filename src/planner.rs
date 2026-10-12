@@ -121,7 +121,7 @@ pub fn validate_plan(
     }
     Ok(())
 }
-fn empty_step(kind: StepKind, targets: Vec<TargetId>) -> PlanStep {
+pub fn empty_step(kind: StepKind, targets: Vec<TargetId>) -> PlanStep {
     PlanStep {
         built_artifacts: vec![],
         build_dependencies: vec![],

@@ -22,7 +22,7 @@ pub struct HelperClient {
 }
 impl HelperClient {
     pub fn start(operation_id: &OperationId, paths: &Paths) -> AppResult<Self> {
-        super::validate::validate_helper_path(&paths.helper)?;
+        crate::engine::verify_helper(paths)?;
         super::validate::trusted_root_path(std::path::Path::new("/usr/bin/pkexec"))?;
         let mut command = Command::new("/usr/bin/pkexec");
         command

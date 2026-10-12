@@ -178,3 +178,25 @@ pub fn prepare_aur(
     out.sync_all()?;
     Ok(recipe)
 }
+
+pub fn package_base(package: &str, ctx: &ProviderContext) -> AppResult<String> {
+    if !crate::execution::aur::package_name(package) {
+        return Err(AppError::new(
+            ErrorCode::InvalidInput,
+            "Paquete AUR inválido",
+        ));
+    }
+    let mut url = reqwest::Url::parse("https://aur.archlinux.org/rpc/v5/info").unwrap();
+    url.query_pairs_mut().append_pair("arg[]", package);
+    let data = ctx.http.json(
+        url.as_str(),
+        &DownloadPolicy::for_hosts(&["aur.archlinux.org"], 2_097_152),
+    )?;
+    let base = data["results"]
+        .as_array()
+        .and_then(|rows| rows.iter().find(|r| r["Name"] == package))
+        .and_then(|row| row["PackageBase"].as_str())
+        .filter(|b| crate::execution::aur::package_name(b))
+        .ok_or_else(|| AppError::new(ErrorCode::Unsupported, "Base AUR no verificable"))?;
+    Ok(base.into())
+}

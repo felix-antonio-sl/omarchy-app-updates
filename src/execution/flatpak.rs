@@ -1,8 +1,5 @@
 use super::*;
-use crate::{
-    providers::flatpak::{flatpak_query, target_ref, valid_commit},
-    store::Store,
-};
+use crate::providers::flatpak::{flatpak_query, target_ref, valid_commit};
 pub trait FlatpakBackend: Send + Sync {
     fn prepare(&self, target: &Target, commit: &str) -> AppResult<Vec<FlatpakChange>>;
     fn apply(&self, changes: &[FlatpakChange]) -> AppResult<()>;
@@ -27,7 +24,7 @@ pub fn run_flatpak(step: &PlanStep, ctx: &ExecutionContext) -> AppResult<Vec<Tar
             "Plan Flatpak no permitido",
         ));
     }
-    let report = Store::new(ctx.paths.clone()).load()?.report;
+    let report = ctx.report()?;
     let mut targets = vec![];
     for id in &step.targets {
         let target = report

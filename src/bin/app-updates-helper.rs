@@ -38,7 +38,7 @@ impl EventSink for Output {
         )
     }
 }
-fn run(output: &mut Output) -> AppResult<()> {
+fn run(output: &mut Output, operation_id: &mut Option<OperationId>) -> AppResult<()> {
     alpm::verify_abi()?;
     validate_helper_path(&std::env::current_exe()?)?;
     let caller = caller()?;
@@ -52,6 +52,7 @@ fn run(output: &mut Output) -> AppResult<()> {
             "La primera solicitud debe ser Prepare",
         ));
     }
+    *operation_id = Some(first.operation_id().clone());
     let transaction = AlpmTransaction::system(
         caller,
         first.operation_id().clone(),
@@ -76,8 +77,9 @@ fn main() {
         return;
     }
     let mut output = Output(Arc::new(Mutex::new(io::stdout())));
+    let mut operation_id = None;
     let result = if args.is_empty() {
-        run(&mut output)
+        run(&mut output, &mut operation_id)
     } else {
         Err(AppError::new(
             ErrorCode::InvalidInput,
@@ -87,7 +89,7 @@ fn main() {
     if let Err(error) = result {
         let _ = helper::write_event(
             &helper::HelperEvent::Error {
-                operation_id: None,
+                operation_id,
                 error,
             },
             &mut output,

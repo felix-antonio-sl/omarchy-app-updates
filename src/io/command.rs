@@ -15,6 +15,7 @@ pub struct CommandSpec {
     pub env: BTreeMap<String, String>,
     pub timeout: Duration,
     pub cwd: Option<PathBuf>,
+    pub cancellation: Option<Arc<std::sync::atomic::AtomicBool>>,
 }
 impl CommandSpec {
     pub fn new(program: impl Into<PathBuf>) -> Self {
@@ -24,6 +25,7 @@ impl CommandSpec {
             env: BTreeMap::new(),
             timeout: Duration::from_secs(60),
             cwd: None,
+            cancellation: None,
         }
     }
     pub fn args(mut self, args: impl IntoIterator<Item = String>) -> Self {
@@ -159,7 +161,11 @@ impl CommandBackend for SystemBackend {
             if let Some(s) = child.try_wait()? {
                 break s;
             }
-            if start.elapsed() > spec.timeout {
+            let cancelled = spec
+                .cancellation
+                .as_ref()
+                .is_some_and(|v| v.load(std::sync::atomic::Ordering::Acquire));
+            if cancelled || start.elapsed() > spec.timeout {
                 // This child has its own process group. It cannot include a pre-existing app.
                 let _ = Command::new("/usr/bin/kill")
                     .args(["-KILL", "--", &format!("-{}", child.id())])
@@ -169,10 +175,16 @@ impl CommandBackend for SystemBackend {
                     .status();
                 let _ = child.kill();
                 let _ = child.wait();
-                return Err(AppError::new(
-                    ErrorCode::IoError,
-                    "Tiempo de espera del comando agotado",
-                ));
+                let _ = out.join();
+                let _ = err.join();
+                return Err(if cancelled {
+                    AppError::new(
+                        ErrorCode::AuthCancelled,
+                        "Preparación cancelada; solo se detuvo el grupo de procesos creado por este trabajo",
+                    )
+                } else {
+                    AppError::new(ErrorCode::IoError, "Tiempo de espera del comando agotado")
+                });
             }
             std::thread::sleep(Duration::from_millis(25));
         };

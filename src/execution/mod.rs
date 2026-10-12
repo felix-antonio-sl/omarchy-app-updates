@@ -17,6 +17,8 @@ pub struct ExecutionContext<'a> {
     pub processes: Arc<dyn reopen::ProcessBackend>,
     pub steam: Arc<dyn steam::SteamBackend>,
     pub activation: Arc<dyn telegram::ActivationBackend>,
+    frozen_report: Option<Report>,
+    pub cancellation: Option<Arc<std::sync::atomic::AtomicBool>>,
 }
 impl<'a> ExecutionContext<'a> {
     pub fn new(
@@ -33,6 +35,23 @@ impl<'a> ExecutionContext<'a> {
             processes: Arc::new(reopen::LinuxProcesses),
             steam: Arc::new(steam::NativeSteam),
             activation: Arc::new(telegram::FileActivation),
+            frozen_report: None,
+            cancellation: None,
+        }
+    }
+    pub fn with_cancellation(mut self, cancellation: Arc<std::sync::atomic::AtomicBool>) -> Self {
+        self.cancellation = Some(cancellation);
+        self
+    }
+    pub fn with_report(mut self, report: Report) -> Self {
+        self.frozen_report = Some(report);
+        self
+    }
+    pub fn report(&self) -> AppResult<Report> {
+        if let Some(report) = &self.frozen_report {
+            Ok(report.clone())
+        } else {
+            Ok(crate::store::Store::new(self.paths.clone()).load()?.report)
         }
     }
     pub fn with_steam(mut self, backend: Arc<dyn steam::SteamBackend>) -> Self {

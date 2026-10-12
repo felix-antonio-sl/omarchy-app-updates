@@ -6,7 +6,6 @@ use crate::{
         steam::{detect_channel, manifest_url, manifest_version},
         telegram::binary_hash,
     },
-    store::Store,
 };
 use std::{
     fs,
@@ -282,9 +281,8 @@ pub fn run_steam(step: &PlanStep, ctx: &ExecutionContext) -> AppResult<TargetRes
             "Paso Steam no válido",
         ));
     }
-    let state = Store::new(ctx.paths.clone()).load()?;
-    let target = state
-        .report
+    let report = ctx.report()?;
+    let target = report
         .apps
         .iter()
         .flat_map(|a| &a.components)
@@ -296,8 +294,7 @@ pub fn run_steam(step: &PlanStep, ctx: &ExecutionContext) -> AppResult<TargetRes
             "El destino ya no es el cliente Steam",
         ));
     };
-    let available = state
-        .report
+    let available = report
         .checks
         .iter()
         .find(|c| c.target_id == target.id && !c.stale)

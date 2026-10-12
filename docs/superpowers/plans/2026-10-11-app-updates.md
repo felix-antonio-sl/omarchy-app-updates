@@ -502,14 +502,14 @@ ampliar `src/execution/reopen.rs`.
 `UserDecision` incluye `question_id: QuestionId`, `digest` y
 `value: DecisionValue` de T9, sin credenciales.
 
-- [ ] **1. Escribir `jobs_survive_panel_and_correlate_results`**: cierre de cliente
+- [x] **1. Escribir `jobs_survive_panel_and_correlate_results`**: cierre de cliente
   no termina worker; reload no sustituye exe del trabajo; segunda instalación
   devuelve Busy; fallo polkit no sobreescribe resultado de otra operación;
   decisión tardía/ID ajeno se rechaza; después de caída se coteja unidad y proveedor;
   accepted nunca es Completed. Fuente caída conserva caché stale; máximo dos
   proveedores concurrentes; no hay timer instalado ni proceso permanente idle.
-- [ ] **2. Ejecutar** `cargo test --test jobs`: FAIL con systemd y reloj simulados.
-- [ ] **3. Implementar** ejecutable copiado por job, bloqueo global y unidad
+- [x] **2. Ejecutar** `cargo test --test jobs`: FAIL con systemd y reloj simulados.
+- [x] **3. Implementar** ejecutable copiado por job, bloqueo global y unidad
   `omarchy-app-updates-<operation-id>.service`, state privado y socket de decisiones
   en runtime con modo 0600. Secuencia por fases, resultado por target, eventos
   monotónicos y respuesta del helper vinculada al último plan. Permitir cancelar
@@ -517,9 +517,9 @@ ampliar `src/execution/reopen.rs`.
   Si cambia la ABI de libalpm durante ArchFull, conservar su resultado y detener
   nuevas transacciones con `NeedsEnginePreparation`; los pasos restantes se
   muestran pendientes para un plan nuevo tras preparar el motor.
-- [ ] **4. Ejecutar** `cargo test --test jobs`: PASS. Integración con unidad real
+- [x] **4. Ejecutar** `cargo test --test jobs`: PASS. Integración con unidad real
   usando solo proveedor simulado que duerme brevemente y genera un recibo nuevo.
-- [ ] **5. Commit:** `feat: persist update jobs and recover verified operation state`.
+- [x] **5. Commit:** `feat: persist update jobs and recover verified operation state`.
 
 ### Task 14: Panel nativo, selección, planes y errores
 

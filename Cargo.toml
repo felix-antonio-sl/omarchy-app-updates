@@ -12,7 +12,7 @@ serde_json = "1"
 sha2 = "0.10"
 uuid = { version = "1", features = ["v4", "serde"] }
 reqwest = { version = "0.13", features = ["blocking", "json", "gzip"] }
-rustix = { version = "1.1", features = ["fs", "process", "event", "time"] }
+rustix = { version = "1.1", features = ["fs", "process", "event", "time", "net"] }
 
 [build-dependencies]
 sha2 = "0.10"
