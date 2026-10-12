@@ -5,6 +5,7 @@ pub mod io;
 pub mod paths;
 pub mod policy;
 pub mod protocol;
+pub mod providers;
 pub mod store;
 
 pub fn should_refresh(checked_at: Option<u64>, now: u64, force: bool) -> bool {

@@ -2,6 +2,7 @@ use crate::domain::*;
 use std::{
     collections::BTreeMap,
     io::Read,
+    os::unix::process::CommandExt,
     path::PathBuf,
     process::{Command, Stdio},
     sync::Arc,
@@ -68,6 +69,50 @@ impl CommandBackend for SystemBackend {
             ));
         }
         let mut cmd = Command::new(&spec.program);
+        const ALLOWED_ENV: &[&str] = &[
+            "HOME",
+            "PATH",
+            "LANG",
+            "LC_ALL",
+            "XDG_RUNTIME_DIR",
+            "XDG_CONFIG_HOME",
+            "XDG_DATA_HOME",
+            "XDG_DATA_DIRS",
+            "XDG_STATE_HOME",
+            "XDG_CURRENT_DESKTOP",
+            "XDG_SESSION_TYPE",
+            "DBUS_SESSION_BUS_ADDRESS",
+            "DISPLAY",
+            "WAYLAND_DISPLAY",
+            "HYPRLAND_INSTANCE_SIGNATURE",
+            "OMARCHY_PATH",
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "ALL_PROXY",
+            "NO_PROXY",
+            "http_proxy",
+            "https_proxy",
+            "all_proxy",
+            "no_proxy",
+            "CARGO_TARGET_DIR",
+            "CARGO_BUILD_JOBS",
+            "CHECKUPDATES_DB",
+            "MAKEFLAGS",
+        ];
+        if spec.env.keys().any(|k| !ALLOWED_ENV.contains(&k.as_str())) {
+            return Err(AppError::new(
+                ErrorCode::InvalidInput,
+                "Variable de proceso no permitida",
+            ));
+        }
+        cmd.env_clear()
+            .env("PATH", "/usr/share/omarchy/bin:/usr/bin")
+            .process_group(0);
+        for key in ALLOWED_ENV.iter().filter(|k| **k != "PATH") {
+            if let Some(value) = std::env::var_os(key) {
+                cmd.env(key, value);
+            }
+        }
         cmd.args(&spec.args)
             .envs(&spec.env)
             .env("LC_ALL", "C")
@@ -107,6 +152,13 @@ impl CommandBackend for SystemBackend {
                 break s;
             }
             if start.elapsed() > spec.timeout {
+                // This child has its own process group. It cannot include a pre-existing app.
+                let _ = Command::new("/usr/bin/kill")
+                    .args(["-KILL", "--", &format!("-{}", child.id())])
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status();
                 let _ = child.kill();
                 let _ = child.wait();
                 return Err(AppError::new(

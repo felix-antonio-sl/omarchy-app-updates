@@ -274,19 +274,19 @@ paquetes disponibles y fingerprint; `sync_snapshot(ctx: &ProviderContext) -> App
 permite un transporte simulado; `HttpClient::with_transport` conserva las mismas
 validaciones HTTPS/host incluso sin una conexión de red real.
 
-- [ ] **1. Escribir `repo_priority_and_unknown_sources`**: Arch extra preferido
+- [x] **1. Escribir `repo_priority_and_unknown_sources`**: Arch extra preferido
   sobre revisión mayor de Omarchy; salida 2 de checkupdates equivale a consulta
   sin pendientes; caída de espejo equivale a Unknown; paquete en repo no consulta
   AUR; desaparecido del repo se ofrece con origen nuevo, sin cambiarlo al instalar;
   `IgnorePkg` queda visible como restricción. AUR RPC no ejecuta PKGBUILD.
-- [ ] **2. Ejecutar** `cargo test --test package_checks`: FAIL antes de adaptadores.
-- [ ] **3. Implementar** base temporal exclusiva por operación con checkupdates,
+- [x] **2. Ejecutar** `cargo test --test package_checks`: FAIL antes de adaptadores.
+- [x] **3. Implementar** base temporal exclusiva por operación con checkupdates,
   lectura de todos los paquetes disponibles y RPC AUR. Procesos: timeout 60 s;
   HTTP: timeout 30 s; máximo tres intentos solo para fallos transitorios.
   No ejecutar sincronización del sistema, yay, makepkg ni `--version` de apps.
-- [ ] **4. Ejecutar** `cargo test --test package_checks`: PASS; snapshot real
+- [x] **4. Ejecutar** `cargo test --test package_checks`: PASS; snapshot real
   deja intactos hashes y mtimes de la base sync del sistema.
-- [ ] **5. Commit:** `feat: check configured repositories and AUR without installing`.
+- [x] **5. Commit:** `feat: check configured repositories and AUR without installing`.
 
 ### Task 6: Identidad y proveedor Flatpak
 
