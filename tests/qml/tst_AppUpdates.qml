@@ -27,6 +27,8 @@ TestCase {
         property var job: null
         property var history: []
         property bool engineReady: true
+        property bool preparingEngine: false
+        property string preparationMessage: ""
         property var requests: []
         function saveSelection(ids) {
             requests.push({
@@ -81,6 +83,10 @@ TestCase {
                 action: "engine"
             });
         }
+    }
+    Component {
+        id: bootstrapFactory
+        Apps.Bootstrap {}
     }
     Component {
         id: clientFactory
@@ -212,6 +218,7 @@ TestCase {
         compare(request.action, "selection");
         compare(request.payload.selected[0], "repo:steam");
         compare(process.command.length, 1);
+        verify(process.command[0].charAt(0) === "/", process.command[0]);
         client.acceptResponse({
             protocol_version: 1,
             request_id: "foreign",
@@ -280,5 +287,42 @@ TestCase {
         body.confirmReopen();
         compare(fake.requests[0].action, "reopen");
         compare(fake.requests[0].app, "repo:chrome");
+    }
+    function test_bootstrap_correlates_a_new_receipt_and_does_not_need_old_engine() {
+        var bootstrap = createTemporaryObject(bootstrapFactory, test);
+        verify(bootstrap !== null);
+        var done = false;
+        bootstrap.finished.connect(function () {
+            done = true;
+        });
+        bootstrap.consume({
+            unit: "omarchy-app-updates-prepare.service",
+            operation_id: "old",
+            phase: "completed",
+            message: "old receipt"
+        });
+        bootstrap.prepare();
+        bootstrap.consume({
+            unit: "omarchy-app-updates-prepare.service",
+            operation_id: "old",
+            phase: "completed",
+            message: "old receipt"
+        });
+        verify(!done);
+        bootstrap.consume({
+            unit: "omarchy-app-updates-prepare.service",
+            operation_id: "new",
+            phase: "building",
+            message: "building"
+        });
+        verify(bootstrap.busy);
+        bootstrap.consume({
+            unit: "omarchy-app-updates-prepare.service",
+            operation_id: "new",
+            phase: "completed",
+            message: "new receipt"
+        });
+        verify(done);
+        verify(!bootstrap.busy);
     }
 }

@@ -1,0 +1,58 @@
+#!/usr/bin/bash
+# Runs as the user in a transient unit. Never calls Cargo or makepkg as root.
+set -euo pipefail
+umask 077
+app_source=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+app_state="$HOME/.local/state/omarchy-app-updates"
+app_id=$(cat /proc/sys/kernel/random/uuid)
+app_unit=omarchy-app-updates-prepare.service
+app_started=$(date +%s)
+for app_parent in "$HOME" "$HOME/.local" "$HOME/.local/state" "$app_state"; do
+  [[ ! -L "$app_parent" ]] || exit 1
+done
+mkdir -p "$app_state"
+[[ $(stat -c %u "$app_state") == "$UID" && ! -L "$app_state" ]] || exit 1
+[[ ! -L "$app_state/worker.lock" ]] || exit 1
+if [[ -e "$app_state/worker.lock" ]]; then
+  [[ $(stat -c %u "$app_state/worker.lock") == "$UID" && $(stat -c %h "$app_state/worker.lock") == 1 ]] || exit 1
+fi
+exec 9>>"$app_state/worker.lock"
+flock -n 9 || exit 1
+app_work="$app_state/preparations/$app_id"
+mkdir -p "$app_work/source"
+app_receipt="$app_state/engine-preparation.json"
+app_receipt_tmp="$app_state/.preparation-$app_id"
+write_state() {
+  /usr/bin/jq -n --arg id "$app_id" --arg unit "$app_unit" --arg phase "$1" \
+    --argjson started_at "$app_started" --arg message "$2" \
+    '{operation_id:$id,unit:$unit,phase:$phase,started_at:$started_at,message:$message}' > "$app_receipt_tmp"
+  mv -f -- "$app_receipt_tmp" "$app_receipt"
+}
+failed() { write_state failed 'La preparación no terminó. Se conserva el plugin anterior; revisa preparation-cargo.log y preparation-pacman.log.'; }
+trap failed ERR
+write_state building 'Compilando las fuentes fijadas con Cargo.lock; el trabajo continúa al cerrar el panel.'
+# The installed source set is explicit; build caches, Git internals and host data stay outside.
+for app_file in manifest.json Cargo.toml Cargo.lock build.rs README.md LICENSE src ui catalog native packaging scripts; do
+  if [[ -e "$app_source/$app_file" ]]; then
+    [[ -z $(find "$app_source/$app_file" -type l -print -quit) ]] || exit 1
+    cp -a -- "$app_source/$app_file" "$app_work/source/$app_file"
+  fi
+done
+[[ -f "$app_work/source/Cargo.lock" ]] || exit 1
+app_cargo="$HOME/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo"
+[[ -f "$app_cargo" && ! -L "$app_cargo" && $(stat -c %u "$app_cargo") == "$UID" ]] || exit 1
+export PATH="$HOME/.cargo/bin:/usr/bin"
+export CARGO_BUILD_JOBS=2
+export CARGO_TARGET_DIR="$app_state/build/native"
+for app_parent in "$app_state/build" "$CARGO_TARGET_DIR"; do
+  [[ ! -L "$app_parent" ]] || exit 1
+done
+[[ ! -L "$app_state/preparation-cargo.log" ]] || exit 1
+mkdir -p "$CARGO_TARGET_DIR"
+"$app_cargo" build --manifest-path "$app_work/source/Cargo.toml" --release --locked --bins > "$app_state/preparation-cargo.log" 2>&1
+write_state awaiting_auth 'Autoriza la instalación del paquete propio del plugin en la ventana del sistema.'
+# Hand the global lease to the new compatible Rust installer.
+flock -u 9
+exec 9>&-
+"$CARGO_TARGET_DIR/release/app-updates" --finish-engine "$app_work/source" > "$app_work/result.json"
+write_state completed 'Motor y ejecutor preparados. Apps está listo.'

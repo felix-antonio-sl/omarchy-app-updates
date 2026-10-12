@@ -4,6 +4,7 @@ pub mod engine;
 pub mod execution;
 mod flatpak_native;
 pub mod helper;
+pub mod install;
 pub mod inventory;
 pub mod io;
 pub mod jobs;

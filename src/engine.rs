@@ -69,7 +69,16 @@ pub fn inspect(path: &Path) -> AppResult<EngineMetadata> {
     })
 }
 pub fn verify_helper(paths: &Paths) -> AppResult<()> {
-    crate::helper::validate::validate_helper_path(&paths.helper)?;
+    crate::helper::validate::validate_helper_path(&paths.helper).map_err(|e| {
+        if e.code == ErrorCode::IoError {
+            AppError::new(
+                ErrorCode::NeedsEnginePreparation,
+                "Prepara el ejecutor administrativo del plugin",
+            )
+        } else {
+            e
+        }
+    })?;
     compatible(&inspect(&paths.helper)?)
 }
 pub fn verify_disk_engine(executable: &Path, paths: &Paths) -> AppResult<()> {

@@ -193,7 +193,20 @@ pub fn worker_lock(paths: &Paths) -> AppResult<std::fs::File> {
 }
 
 pub fn run_worker(operation: &OperationId, paths: &Paths) -> AppResult<()> {
-    let _lease = worker_lock(paths)?;
+    // Submission holds the lease through systemd dispatch; wait only for that short handoff.
+    let started = std::time::Instant::now();
+    let _lease = loop {
+        match worker_lock(paths) {
+            Ok(lease) => break lease,
+            Err(error)
+                if error.code == ErrorCode::Busy
+                    && started.elapsed() < std::time::Duration::from_secs(30) =>
+            {
+                std::thread::sleep(std::time::Duration::from_millis(50))
+            }
+            Err(error) => return Err(error),
+        }
+    };
     let job = JobHandle::load(operation, paths)?;
     let saved = job.record();
     if super::terminal(&saved.operation.phase) || saved.operation.phase != Phase::Queued {

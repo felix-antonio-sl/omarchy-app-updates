@@ -179,7 +179,13 @@ Item {
                 visible: !root.controller.engineReady
                 Label {
                     width: parent.width
-                    text: "Prepara el motor para usar Apps. La compilación y la autorización se realizan desde esta interfaz."
+                    text: "Prepara el motor para usar Apps. Se compilan las fuentes con Cargo.lock y se instala el paquete propio del ejecutor mediante autorización gráfica."
+                }
+                Label {
+                    width: parent.width
+                    visible: root.controller.preparingEngine === true
+                    text: root.controller.preparationMessage || "Preparando el motor"
+                    color: Color.accent
                 }
                 Ui.Button {
                     text: "Preparar motor"

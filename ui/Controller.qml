@@ -24,7 +24,9 @@ Item {
     property var job: null
     property var history: []
     property string error: ""
-    property bool engineReady: true
+    property bool engineReady: false
+    readonly property bool preparingEngine: bootstrap.busy
+    readonly property string preparationMessage: bootstrap.receiptState ? bootstrap.receiptState.message : ""
     property var queue: []
     property var inflight: null
     property int serial: 0
@@ -127,6 +129,8 @@ Item {
         }
         handled = true;
         if (response.error) {
+            if (inflight.action === "engine_status")
+                engineReady = false;
             error = response.error.message || "No se pudo completar la solicitud";
             if (["needs_engine_preparation", "abi_incompatible"].indexOf(response.error.code) >= 0)
                 engineReady = false;
@@ -157,6 +161,8 @@ Item {
                     }
                 }
             }
+        } else if (action === "engine_status") {
+            engineReady = value && value.ready === true;
         } else if (action === "plan") {
             plan = value.plan;
             recipes = value.recipes || [];
@@ -240,6 +246,8 @@ Item {
                 operation_id: root.job.operation.id
             })
     }
-    Component.onCompleted: if (autoStart)
-        request("status", {})
+    Component.onCompleted: if (autoStart) {
+        request("status", {});
+        request("engine_status", {});
+    }
 }

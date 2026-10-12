@@ -563,16 +563,16 @@ ampliar `ui/Bootstrap.qml`, CLI, README y Cargo metadata.
 `InstallReceipt` conserva versión, digest de artefactos, archivos propios y backup
 de shell.json. `engine_compatible(plugin_version: &str, helper_version: &str, protocol: u32, abi_major: u32) -> bool`.
 
-- [ ] **1. Escribir `install_is_atomic_and_reversible`**: fuente/staging con
+- [x] **1. Escribir `install_is_atomic_and_reversible`**: fuente/staging con
   symlinks externos rechazada; engine ausente ofrece preparar; mismatch bloquea
   apply; build requiere Cargo.lock y no se repite al abrir; error antes de swap
   conserva plugin; shell backup preserva los widgets; job activo bloquea retirada;
   uninstall deja perfiles y apps intactos; todos los archivos admin son root-owned.
   Si una nueva ABI impide arrancar el binario previo, Bootstrap todavía permite
   recompilar; un job activo conserva su ejecutable y no se reemplaza a mitad.
-- [ ] **2. Ejecutar** `cargo test --test install`: FAIL con filesystem y comandos
+- [x] **2. Ejecutar** `cargo test --test install`: FAIL con filesystem y comandos
   aislados; los tests no escriben `~/.config/omarchy` ni `/usr` reales.
-- [ ] **3. Implementar** build locked con dos jobs, progreso y preparación explícita.
+- [x] **3. Implementar** build locked con dos jobs, progreso y preparación explícita.
   Bootstrap puede lanzar la compilación directamente en una unidad systemd con
   programa Cargo confiable y argv fijo aunque el motor no arranque. No depende
   del motor roto para ejecutar `PrepareEngine`. Mantener CARGO_TARGET_DIR fuera
@@ -589,9 +589,9 @@ de shell.json. `engine_compatible(plugin_version: &str, helper_version: &str, pr
   Copiar a staging de usuario solo manifiesto, QML, catálogo, fuentes necesarias
   para preparación y binario; excluir target, symlinks y datos del host. Swap
   completo, rescan, enable y verificar IPC. Retirar helper por su paquete propio.
-- [ ] **4. Ejecutar** `cargo test --test install`: PASS; revisar lista del paquete
+- [x] **4. Ejecutar** `cargo test --test install`: PASS; revisar lista del paquete
   local antes de cualquier instalación. README explica que plugin add no compila.
-- [ ] **5. Commit:** `feat: prepare and install the Rust plugin through graphical auth`.
+- [x] **5. Commit:** `feat: prepare and install the Rust plugin through graphical auth`.
 
 ### Task 16: Verificación completa y aceptación en Korax
 

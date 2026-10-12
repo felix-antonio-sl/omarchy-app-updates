@@ -7,6 +7,7 @@ pub const MAX_REQUEST: usize = 1_048_576;
 pub enum Action {
     Inventory,
     Status,
+    EngineStatus,
     Check,
     Plan,
     Apply,
@@ -128,6 +129,16 @@ pub fn dispatch(req: Request, paths: &Paths) -> AppResult<Response> {
 fn execute(req: &Request, paths: &Paths) -> AppResult<Value> {
     let store = Store::new(paths.clone());
     match &req.action {
+        Action::EngineStatus => {
+            crate::engine::verify_helper(paths)?;
+            Ok(serde_json::json!({"ready":true,"metadata":crate::engine::metadata()}))
+        }
+        Action::PrepareEngine => Ok(serde_json::to_value(crate::install::prepare_engine(
+            &paths.plugin,
+            paths,
+            &crate::helper::SilentSink,
+        )?)?),
+        Action::RemovePlugin => Ok(serde_json::to_value(crate::install::remove_plugin(paths)?)?),
         Action::Status => {
             crate::jobs::recovery::recover(paths)?;
             let mut state = store.load()?;

@@ -1,0 +1,16 @@
+# Packaging only. The Rust binaries have already been built as the user.
+pkgname=omarchy-app-updates-helper
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Restricted administrative executor for the Omarchy Apps plugin'
+arch=('x86_64')
+license=('GPL-3.0-or-later')
+depends=('pacman' 'flatpak' 'libarchive')
+source=('app-updates-helper' 'org.korvo.app-updates.policy' 'LICENSE')
+# Replaced with the three exact hashes by the Rust preparer before makepkg.
+sha256sums=('@HELPER_SHA256@' '@POLICY_SHA256@' '@LICENSE_SHA256@')
+package() {
+  install -Dm755 "$srcdir/app-updates-helper" "$pkgdir/usr/lib/omarchy-app-updates/app-updates-helper"
+  install -Dm644 "$srcdir/org.korvo.app-updates.policy" "$pkgdir/usr/share/polkit-1/actions/org.korvo.app-updates.policy"
+  install -Dm644 "$srcdir/LICENSE" "$pkgdir/usr/share/licenses/omarchy-app-updates-helper/LICENSE"
+}

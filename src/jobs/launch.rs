@@ -119,6 +119,7 @@ pub fn submit_with_backend(
     {
         return Err(AppError::new(ErrorCode::Busy, "Ya hay un trabajo en curso"));
     }
+    let _preparation_lease = super::worker::worker_lock(paths)?;
     let id: OperationId = uuid::Uuid::new_v4().to_string().into();
     let dir = super::job_directory(&id, paths)?;
     crate::execution::aur::private_directory(&dir)?;

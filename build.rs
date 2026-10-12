@@ -15,6 +15,8 @@ fn main() {
         "src",
         "native",
         "catalog",
+        "packaging",
+        "scripts",
         "Cargo.toml",
         "Cargo.lock",
         "build.rs",

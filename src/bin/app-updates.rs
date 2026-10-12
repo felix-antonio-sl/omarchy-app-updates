@@ -14,25 +14,32 @@ fn main() {
         return;
     }
     if !args.is_empty() {
-        let result = if args.len() == 2 && args[0] == "--worker" {
-            omarchy_app_updates::jobs::worker::run_worker(&OperationId(args[1].clone()), &paths)
-        } else {
-            Err(AppError::new(
+        let result: AppResult<serde_json::Value> = match args.as_slice() {
+            [flag, id] if flag == "--worker" => {
+                omarchy_app_updates::jobs::worker::run_worker(&OperationId(id.clone()), &paths)
+                    .map(|_| serde_json::json!({"worker_finished":true}))
+            }
+            [flag, source] if flag == "--finish-engine" => {
+                omarchy_app_updates::install::finish_engine(std::path::Path::new(source), &paths)
+                    .and_then(|r| Ok(serde_json::to_value(r)?))
+            }
+            [flag, source] if flag == "--install-source" => {
+                omarchy_app_updates::install::install_plugin(std::path::Path::new(source), &paths)
+                    .and_then(|r| Ok(serde_json::to_value(r)?))
+            }
+            _ => Err(AppError::new(
                 ErrorCode::InvalidInput,
                 "Argumentos no admitidos",
-            ))
+            )),
         };
-        if let Err(error) = result {
-            println!(
-                "{}",
-                serde_json::to_string(&Response {
-                    protocol_version: 1,
-                    request_id: "worker".into(),
-                    result: None,
-                    error: Some(error)
-                })
-                .unwrap()
-            );
+        let response = Response {
+            protocol_version: 1,
+            request_id: "direct".into(),
+            result: result.as_ref().ok().cloned(),
+            error: result.err(),
+        };
+        println!("{}", serde_json::to_string(&response).unwrap());
+        if response.error.is_some() {
             std::process::exit(1);
         }
         return;
