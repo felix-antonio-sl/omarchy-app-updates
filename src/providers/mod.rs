@@ -1,5 +1,6 @@
 pub mod arch;
 pub mod aur;
+pub mod flatpak;
 use crate::{
     domain::*,
     io::{command::CommandRunner, http::HttpClient},

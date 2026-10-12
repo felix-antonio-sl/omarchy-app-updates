@@ -299,18 +299,18 @@ validaciones HTTPS/host incluso sin una conexión de red real.
 `ExecutionContext` de `src/execution/mod.rs` contiene ProviderContext, Paths,
 OperationId y `emit: &dyn EventSink`; `EventSink::send(event: OperationEvent) -> AppResult<()>`.
 
-- [ ] **1. Escribir `flatpak_scope_and_commits`**: app igual instalada en user y
+- [x] **1. Escribir `flatpak_scope_and_commits`**: app igual instalada en user y
   system, ramas master/stable y remotos diferentes producen IDs y comandos
   distintos; commit nuevo sin versión sí detecta actualización; coincidencia
   confirma Current; runtime necesario está en el plan; runtime EOL se informa,
   sin migrarlo ni borrar permisos. Update que termina sin nuevo commit no dice Updated.
-- [ ] **2. Ejecutar** `cargo test --test flatpak`: FAIL antes del proveedor.
-- [ ] **3. Implementar** interfaces usando columnas explícitas y argumentos de
+- [x] **2. Ejecutar** `cargo test --test flatpak`: FAIL antes del proveedor.
+- [x] **3. Implementar** interfaces usando columnas explícitas y argumentos de
   Flatpak por instalación/referencia; exigir mismo canal y verificar commit final.
   El método de ejecución solo acepta PlanStep validado por T8, jamás argv del panel.
-- [ ] **4. Ejecutar** `cargo test --test flatpak`: PASS; comparar en modo lectura
+- [x] **4. Ejecutar** `cargo test --test flatpak`: PASS; comparar en modo lectura
   GeForce NOW con su remoto oficial. No hacer una actualización para este check.
-- [ ] **5. Commit:** `feat: check and update scoped Flatpak references`.
+- [x] **5. Commit:** `feat: check and update scoped Flatpak references`.
 
 ### Task 7: Publicaciones oficiales, Telegram, Steam y webapps
 

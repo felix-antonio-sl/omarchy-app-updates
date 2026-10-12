@@ -1,5 +1,7 @@
 pub mod alpm;
 pub mod domain;
+pub mod execution;
+mod flatpak_native;
 pub mod inventory;
 pub mod io;
 pub mod paths;

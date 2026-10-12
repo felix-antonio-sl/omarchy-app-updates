@@ -1,4 +1,4 @@
-use super::{AppId, PlanId, TargetId};
+use super::{AppId, FlatpakInstall, PlanId, TargetId};
 use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdatePlan {
@@ -12,6 +12,8 @@ pub struct UpdatePlan {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlanStep {
+    #[serde(default)]
+    pub flatpak_changes: Vec<FlatpakChange>,
     pub kind: StepKind,
     pub targets: Vec<TargetId>,
     pub package_changes: Vec<PackageChange>,
@@ -19,6 +21,19 @@ pub struct PlanStep {
     pub requires_auth: bool,
     pub reopen: Vec<AppId>,
     pub aur_recipe: Option<AurRecipeRef>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct FlatpakChange {
+    pub installation: FlatpakInstall,
+    pub reference: String,
+    pub remote: String,
+    pub commit: String,
+    pub previous_commit: Option<String>,
+    pub operation_type: u32,
+    pub download_bytes: u64,
+    pub metadata: String,
+    pub old_metadata: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
