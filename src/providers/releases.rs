@@ -182,11 +182,9 @@ pub fn annotate_published(check: &mut Check, target: &Target, ctx: &ProviderCont
     }
     match published_version(target,ctx) {
         Ok(Some(v)) => {
-            if let Some(installed) = &check.installed {
-                if let Ok(state) = classify(installed,check.available.as_ref(),Some(&v)) {
-                    if matches!(check.state,CheckState::Current|CheckState::UpdateAvailable|CheckState::InstalledAhead) { check.state = state; }
-                }
-            }
+            if let Some(installed) = &check.installed
+                && let Ok(state) = classify(installed,check.available.as_ref(),Some(&v))
+                    && matches!(check.state,CheckState::Current|CheckState::UpdateAvailable|CheckState::InstalledAhead) { check.state = state; }
             check.published = Some(v);
         },
         Ok(None) => check.details.push("Sin fuente de publicación estable verificable".into()),

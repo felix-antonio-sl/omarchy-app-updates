@@ -205,20 +205,20 @@ pub fn system_scope(
 ) -> AppResult<Vec<PackageChange>> {
     let mut changes: BTreeMap<String, &AvailablePackage> = BTreeMap::new();
     for installed in &snapshot.installed {
-        if let Some(next) = snapshot.preferred(&installed.name) {
-            if arch_compare(&next.version, &installed.version)? == Ordering::Greater {
-                if installed.ignored {
-                    return Err(AppError::new(
-                        ErrorCode::PlanChanged,
-                        format!(
-                            "{} está retenido por IgnorePkg/IgnoreGroup; requiere revisar coherencia antes de actualizar el sistema",
-                            installed.name
-                        ),
-                    ));
-                }
-                protect_package(next, snapshot, policy)?;
-                changes.insert(next.name.clone(), next);
+        if let Some(next) = snapshot.preferred(&installed.name)
+            && arch_compare(&next.version, &installed.version)? == Ordering::Greater
+        {
+            if installed.ignored {
+                return Err(AppError::new(
+                    ErrorCode::PlanChanged,
+                    format!(
+                        "{} está retenido por IgnorePkg/IgnoreGroup; requiere revisar coherencia antes de actualizar el sistema",
+                        installed.name
+                    ),
+                ));
             }
+            protect_package(next, snapshot, policy)?;
+            changes.insert(next.name.clone(), next);
         }
     }
     let mut pending = changes.keys().cloned().collect::<BTreeSet<_>>();
@@ -265,18 +265,17 @@ pub fn system_scope(
                 }
                 *options.values().next().unwrap()
             };
-            if let Some(installed) = snapshot.installed.iter().find(|p| p.name == candidate.name) {
-                if installed.ignored
-                    || arch_compare(&candidate.version, &installed.version)? == Ordering::Less
-                {
-                    return Err(AppError::new(
-                        ErrorCode::PlanChanged,
-                        format!(
-                            "La dependencia {} está retenida o requeriría degradación",
-                            candidate.name
-                        ),
-                    ));
-                }
+            if let Some(installed) = snapshot.installed.iter().find(|p| p.name == candidate.name)
+                && (installed.ignored
+                    || arch_compare(&candidate.version, &installed.version)? == Ordering::Less)
+            {
+                return Err(AppError::new(
+                    ErrorCode::PlanChanged,
+                    format!(
+                        "La dependencia {} está retenida o requeriría degradación",
+                        candidate.name
+                    ),
+                ));
             }
             protect_package(candidate, snapshot, policy)?;
             changes.insert(candidate.name.clone(), candidate);
@@ -314,6 +313,11 @@ pub fn system_scope(
         .map(|p| {
             let installed = snapshot.installed.iter().find(|i| i.name == p.name);
             PackageChange {
+                action: if installed.is_some() {
+                    PackageAction::Upgrade
+                } else {
+                    PackageAction::Install
+                },
                 name: p.name.clone(),
                 old_version: installed.map(|i| i.version.clone()),
                 new_version: p.version.clone(),
@@ -478,6 +482,7 @@ pub fn build_plan(
         notices.push("No hay actualizaciones instalables para esta selección".into());
     }
     let mut plan = UpdatePlan {
+        decisions: vec![],
         id: uuid::Uuid::new_v4().to_string().into(),
         created_at: now,
         expires_at: now.saturating_add(900),

@@ -53,10 +53,7 @@ pub fn discover(paths: &Paths, facts: &[PackageFacts], io: &CommandRunner) -> Ap
                 Ok(Some(e)) => e,
                 _ => continue,
             };
-            let words = match exec_words(&entry.exec) {
-                Ok(w) => w,
-                Err(_) => vec![],
-            };
+            let words = exec_words(&entry.exec).unwrap_or_default();
             let words = ownership::program_words(&words);
             let raw = words.first().map(String::as_str).unwrap_or("");
             let app_token = ownership::application_token(words);

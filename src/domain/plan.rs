@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdatePlan {
     #[serde(default)]
+    pub decisions: Vec<PlanDecision>,
+    #[serde(default)]
     pub selected: Vec<AppId>,
     #[serde(default)]
     pub repository_digest: String,
@@ -59,12 +61,28 @@ pub struct AurRecipeRef {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PackageChange {
+    #[serde(default)]
+    pub action: PackageAction,
     pub name: String,
     pub old_version: Option<String>,
     pub new_version: String,
     pub repository: Option<String>,
     pub reason: String,
     pub download_bytes: Option<u64>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum PackageAction {
+    #[default]
+    Upgrade,
+    Install,
+    Remove,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlanDecision {
+    pub question_id: String,
+    pub kind: String,
+    pub value: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Download {

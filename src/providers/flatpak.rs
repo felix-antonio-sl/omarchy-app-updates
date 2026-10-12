@@ -134,24 +134,24 @@ impl Provider for FlatpakProvider {
             Some("--show-runtime"),
             None,
             &reference,
-        ) {
-            if !runtime.is_empty() {
-                check.details.push(format!("Runtime: {runtime}"));
-                if let Ok(info) = flatpak_query(
-                    ctx,
-                    &installation,
-                    "info",
-                    None,
-                    None,
-                    &format!("runtime/{runtime}"),
-                ) {
-                    if info
-                        .lines()
-                        .any(|l| l.contains("End-of-life") || l.contains("end-of-life"))
-                    {
-                        check.details.push("El runtime está fuera de soporte; el proveedor debe publicar una migración".into());
-                    }
-                }
+        ) && !runtime.is_empty()
+        {
+            check.details.push(format!("Runtime: {runtime}"));
+            if let Ok(info) = flatpak_query(
+                ctx,
+                &installation,
+                "info",
+                None,
+                None,
+                &format!("runtime/{runtime}"),
+            ) && info
+                .lines()
+                .any(|l| l.contains("End-of-life") || l.contains("end-of-life"))
+            {
+                check.details.push(
+                    "El runtime está fuera de soporte; el proveedor debe publicar una migración"
+                        .into(),
+                );
             }
         }
         Ok(check)

@@ -39,13 +39,13 @@ impl Store {
     }
 }
 pub fn check_plain(path: &Path) -> AppResult<()> {
-    if let Ok(meta) = fs::symlink_metadata(path) {
-        if meta.file_type().is_symlink() {
-            return Err(AppError::new(
-                ErrorCode::UnsafeArtifact,
-                "No se permiten enlaces en el estado",
-            ));
-        }
+    if let Ok(meta) = fs::symlink_metadata(path)
+        && meta.file_type().is_symlink()
+    {
+        return Err(AppError::new(
+            ErrorCode::UnsafeArtifact,
+            "No se permiten enlaces en el estado",
+        ));
     }
     Ok(())
 }

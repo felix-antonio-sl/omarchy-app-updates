@@ -25,6 +25,16 @@ pub struct AlpmConfig {
     pub noupgrade: Vec<String>,
     pub download_user: Option<String>,
     pub xfer_command: Option<String>,
+    pub logfile: PathBuf,
+    pub holdpkgs: Vec<String>,
+    pub remote_siglevel: Vec<String>,
+    pub checkspace: bool,
+    pub usesyslog: bool,
+    pub parallel_downloads: u32,
+    pub disable_dl_timeout: bool,
+    pub disable_sandbox: bool,
+    pub disable_sandbox_filesystem: bool,
+    pub disable_sandbox_syscalls: bool,
 }
 impl AlpmConfig {
     pub fn load(path: &Path, io: &CommandRunner) -> AppResult<Self> {
@@ -56,6 +66,16 @@ impl AlpmConfig {
             noupgrade: vec![],
             download_user: None,
             xfer_command: None,
+            logfile: "/var/log/pacman.log".into(),
+            holdpkgs: vec![],
+            remote_siglevel: vec![],
+            checkspace: false,
+            usesyslog: false,
+            parallel_downloads: 1,
+            disable_dl_timeout: false,
+            disable_sandbox: false,
+            disable_sandbox_filesystem: false,
+            disable_sandbox_syscalls: false,
         };
         let mut repo = None;
         for line in result.stdout.lines() {
@@ -76,6 +96,17 @@ impl AlpmConfig {
                 continue;
             }
             let Some((key, val)) = line.split_once('=') else {
+                if repo.is_none() {
+                    match line {
+                        "CheckSpace" => cfg.checkspace = true,
+                        "UseSyslog" => cfg.usesyslog = true,
+                        "DisableDownloadTimeout" => cfg.disable_dl_timeout = true,
+                        "DisableSandbox" => cfg.disable_sandbox = true,
+                        "DisableSandboxFilesystem" => cfg.disable_sandbox_filesystem = true,
+                        "DisableSandboxSyscalls" => cfg.disable_sandbox_syscalls = true,
+                        _ => (),
+                    }
+                }
                 continue;
             };
             let key = key.trim();
@@ -105,6 +136,14 @@ impl AlpmConfig {
                     "NoUpgrade" => cfg.noupgrade.extend(words()),
                     "DownloadUser" => cfg.download_user = Some(val.into()),
                     "XferCommand" => cfg.xfer_command = Some(val.into()),
+                    "LogFile" => cfg.logfile = val.into(),
+                    "HoldPkg" => cfg.holdpkgs.extend(words()),
+                    "RemoteFileSigLevel" => cfg.remote_siglevel.extend(words()),
+                    "ParallelDownloads" => {
+                        cfg.parallel_downloads = val.parse().map_err(|_| {
+                            AppError::new(ErrorCode::InvalidInput, "ParallelDownloads inválido")
+                        })?
+                    }
                     _ => {}
                 }
             }

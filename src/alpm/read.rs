@@ -114,7 +114,14 @@ impl AlpmReader {
         // Registration only reads the supplied sync directory; no network/db update is called.
         for repo in &self.config.repos {
             let name = cstring(&repo.name)?;
-            let db = unsafe { ffi::alpm_register_syncdb(self.handle.as_ptr(), name.as_ptr(), 0) };
+            let existing = unsafe {
+                list_ptrs(ffi::alpm_get_syncdbs(self.handle.as_ptr()))
+                    .into_iter()
+                    .find(|p| ctext(ffi::alpm_db_get_name((*p).cast())) == repo.name)
+            };
+            let db = existing.map(|p| p.cast()).unwrap_or_else(|| unsafe {
+                ffi::alpm_register_syncdb(self.handle.as_ptr(), name.as_ptr(), 0)
+            });
             if db.is_null() {
                 return Err(AppError::new(
                     ErrorCode::InvalidInput,

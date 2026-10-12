@@ -177,11 +177,11 @@ fn parse_targets(source: &str) -> AppResult<Vec<String>> {
     let mut tail = None;
     for line in source.split_inclusive('\n') {
         let line_start = line.trim_start();
-        if let Some(rest) = line_start.strip_prefix("TARGETS") {
-            if let Some(value) = rest.trim_start().strip_prefix('=') {
-                tail = Some(&source[offset + line.len() - value.len()..]);
-                break;
-            }
+        if let Some(rest) = line_start.strip_prefix("TARGETS")
+            && let Some(value) = rest.trim_start().strip_prefix('=')
+        {
+            tail = Some(&source[offset + line.len() - value.len()..]);
+            break;
         }
         offset += line.len();
     }
