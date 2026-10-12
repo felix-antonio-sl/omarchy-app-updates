@@ -133,6 +133,10 @@ TestCase {
         verify(text !== null);
         compare(text.textFormat, Text.PlainText);
         compare(text.text, "Chrome <b>literal</b>");
+        var state = findChild(body, "targetState_repo:chrome");
+        verify(state !== null);
+        verify(state.text.indexOf("1.0-1") >= 0);
+        verify(state.height > 0);
         verify(VM.stateLabel(fake.report.checks[2]).indexOf("anterior") >= 0);
         fake.error = "Autorización cancelada <b>";
         wait(0);

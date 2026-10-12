@@ -1,6 +1,14 @@
 .pragma library
 
-function array(value) {return Array.isArray(value) ? value : []}
+function array(value) {
+  if(Array.isArray(value)) return value;
+  // DelegateModel converts nested JSON arrays into Qt sequence wrappers.
+  // They provide length/index access but are not JavaScript Array instances.
+  if(value && typeof value === "object" && typeof value.length === "number" && value.length >= 0 && value.length <= 100000) {
+    var result=[];for(var i=0;i<value.length;i++) result.push(value[i]);return result;
+  }
+  return [];
+}
 function excluded(app) {
   var protectedNames = ["codex", "codex-bin", "claude", "claude-code", "claude-desktop", "antigravity", "opencode", "hermes", "hermes-agent", "chatgpt", "chatgpt-omarchy"]
   return array(app.components).some(function(t) {return t.locator && protectedNames.indexOf(t.locator.package) >= 0})

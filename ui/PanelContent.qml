@@ -246,7 +246,7 @@ Item {
                     delegate: Rectangle {
                         id: row
                         required property var modelData
-                        readonly property var checks: VM.checksFor(root.controller.report, modelData)
+                        readonly property var checks: VM.checksFor(root.controller.report, row.modelData)
                         width: parent.width
                         height: rowBody.implicitHeight + Style.space(16)
                         radius: Style.cornerRadius
@@ -289,6 +289,7 @@ Item {
                                 model: row.checks
                                 delegate: Label {
                                     required property var modelData
+                                    objectName: "targetState_" + modelData.target_id
                                     width: parent.width
                                     text: (row.checks.length > 1 ? (modelData.target_id.indexOf("steam-client") >= 0 ? "Cliente: " : "Lanzador: ") : "") + VM.stateLabel(modelData) + " · " + VM.version(modelData.installed)
                                     color: modelData.stale ? Color.muted : (modelData.state === "update_available" ? Color.accent : Color.foreground)
