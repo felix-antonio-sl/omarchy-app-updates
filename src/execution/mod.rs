@@ -1,6 +1,7 @@
 pub mod aur;
 pub mod flatpak;
 pub mod reopen;
+pub mod steam;
 pub mod telegram;
 use crate::{domain::*, paths::Paths, providers::ProviderContext};
 use std::sync::Arc;
@@ -14,6 +15,7 @@ pub struct ExecutionContext<'a> {
     pub emit: &'a dyn EventSink,
     pub flatpak: Arc<dyn flatpak::FlatpakBackend>,
     pub processes: Arc<dyn reopen::ProcessBackend>,
+    pub steam: Arc<dyn steam::SteamBackend>,
     pub activation: Arc<dyn telegram::ActivationBackend>,
 }
 impl<'a> ExecutionContext<'a> {
@@ -29,8 +31,13 @@ impl<'a> ExecutionContext<'a> {
             emit,
             flatpak: Arc::new(crate::flatpak_native::NativeFlatpak),
             processes: Arc::new(reopen::LinuxProcesses),
+            steam: Arc::new(steam::NativeSteam),
             activation: Arc::new(telegram::FileActivation),
         }
+    }
+    pub fn with_steam(mut self, backend: Arc<dyn steam::SteamBackend>) -> Self {
+        self.steam = backend;
+        self
     }
     pub fn with_processes(mut self, backend: Arc<dyn reopen::ProcessBackend>) -> Self {
         self.processes = backend;

@@ -475,19 +475,19 @@ ampliar `src/execution/reopen.rs`.
 **Interfaces:** `run_steam(step: &PlanStep, ctx: &ExecutionContext) -> AppResult<TargetResult>`;
 `needs_reopen(app: &App, processes: &[RunningApp]) -> AppResult<bool>`.
 
-- [ ] **1. Escribir `steam_client_is_not_launcher_or_games`**: juegos activos o
+- [x] **1. Escribir `steam_client_is_not_launcher_or_games`**: juegos activos o
   estado incierto bloquean cliente; Steam cerrado permite actualización;
   éxito de lanzamiento sin manifiesto nuevo no equivale a Updated; comparación
   conserva canal y build; archivos de juegos/userdata no cambian. Un navegador
   con exe eliminado muestra NeedsReopen y no se cierra por instalar su paquete.
-- [ ] **2. Ejecutar** `cargo test --test steam_execution`: FAIL antes del runner.
-- [ ] **3. Implementar** actualización oficial con flags comprobados del Steam
+- [x] **2. Ejecutar** `cargo test --test steam_execution`: FAIL antes del runner.
+- [x] **3. Implementar** actualización oficial con flags comprobados del Steam
   instalado, unidad supervisada y verificación de manifiesto. Esperar cierre
   manual si no se puede confirmar compatibilidad; no enviar señales a juegos.
   Verificar reapertura por inode/binario y PID/start time, sin usar solo clase UI.
-- [ ] **4. Ejecutar** `cargo test --test steam_execution`: PASS. Paquete y cliente
+- [x] **4. Ejecutar** `cargo test --test steam_execution`: PASS. Paquete y cliente
   se registran por componente; el contador agrupa la aplicación.
-- [ ] **5. Commit:** `feat: verify Steam client updates and pending app reopen`.
+- [x] **5. Commit:** `feat: verify Steam client updates and pending app reopen`.
 
 ### Task 13: Coordinación, trabajos persistentes y recuperación
 

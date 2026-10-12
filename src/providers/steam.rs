@@ -120,3 +120,23 @@ impl Provider for SteamProvider {
         Ok(check)
     }
 }
+
+pub fn detect_channel(root: &std::path::Path) -> AppResult<String> {
+    let path = root.join("package/beta");
+    match std::fs::symlink_metadata(&path) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok("ubuntu12".into()),
+        Err(e) => Err(e.into()),
+        Ok(m) if !m.is_file() || m.len() > 256 => Err(AppError::new(
+            ErrorCode::Unsupported,
+            "El canal Steam no está declarado en un marcador válido",
+        )),
+        Ok(_) => match std::fs::read_to_string(path)?.trim() {
+            "" => Ok("ubuntu12".into()),
+            "publicbeta" => Ok("ubuntu12_beta".into()),
+            _ => Err(AppError::new(
+                ErrorCode::Unsupported,
+                "Canal Steam no reconocido; no se cambia su rama",
+            )),
+        },
+    }
+}

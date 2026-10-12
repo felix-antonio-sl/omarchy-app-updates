@@ -174,7 +174,10 @@ pub fn discover(paths: &Paths, facts: &[PackageFacts], io: &CommandRunner) -> Ap
                     id: "steam:client".into(),
                     locator: Locator::SteamClient {
                         root: paths.home.join(".local/share/Steam"),
-                        channel: "ubuntu12".into(),
+                        channel: crate::providers::steam::detect_channel(
+                            &paths.home.join(".local/share/Steam"),
+                        )
+                        .unwrap_or_else(|_| "unsupported".into()),
                     },
                     installed: None,
                 });

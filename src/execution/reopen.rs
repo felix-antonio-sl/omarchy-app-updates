@@ -167,7 +167,11 @@ impl ProcessBackend for LinuxProcesses {
         Ok(result)
     }
     fn matches(&self, process: &RunningApp) -> AppResult<bool> {
-        Ok(identity(process.pid)?.as_ref() == Some(process))
+        Ok(identity(process.pid)?.is_some_and(|current| {
+            current.pid == process.pid
+                && current.start_ticks == process.start_ticks
+                && current.binary == process.binary
+        }))
     }
     fn close(&self, process: &RunningApp) -> AppResult<()> {
         if process.pid == 0 || process.pid > i32::MAX as u32 {
@@ -264,4 +268,26 @@ pub fn request_reopen(
         std::thread::sleep(Duration::from_millis(100));
     }
     ctx.processes.launch(app, &ctx.paths)
+}
+
+pub fn needs_reopen(_app: &App, processes: &[RunningApp]) -> AppResult<bool> {
+    for process in processes {
+        if !LinuxProcesses.matches(process)? {
+            continue;
+        }
+        match fs::metadata(&process.exe) {
+            Ok(metadata) => {
+                if metadata.dev() != process.binary.device
+                    || metadata.ino() != process.binary.inode
+                    || crate::providers::telegram::binary_hash(&process.exe)?
+                        != process.binary.sha256
+                {
+                    return Ok(true);
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(true),
+            Err(e) => return Err(e.into()),
+        }
+    }
+    Ok(false)
 }
