@@ -1,7 +1,7 @@
 # Apps: estado y actualización de aplicaciones de escritorio en Omarchy
 
-Fecha: 2026-10-11. Estado: diseño conversacional aprobado; especificación escrita
-pendiente de revisión del usuario. Destino inicial: Korax, Omarchy 4.0.4-1.
+Fecha: 2026-10-11. Estado: especificación aprobada por el usuario al solicitar
+el plan de implementación. Destino inicial: Korax, Omarchy 4.0.4-1.
 
 ## 1. Resultado esperado y decisiones aprobadas
 
@@ -356,5 +356,5 @@ el plan visible correspondiente; no se degrada una app para fabricar una prueba.
 
 Revisión propia: propósito y límites explícitos, integración consistente con el
 shell instalado, responsabilidades separadas, estados definidos y alcance de
-transacciones visible. El diseño conversacional está aprobado. La revisión del
-usuario de este documento precede al plan de implementación y a su ejecución.
+transacciones visible. El usuario aprobó continuar con el plan de implementación.
+La revisión de ese plan y la elección del método preceden a su ejecución.
