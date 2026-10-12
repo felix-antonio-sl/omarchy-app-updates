@@ -73,4 +73,14 @@ fn main() {
         )
         .unwrap();
     println!("cargo:rerun-if-changed=native/flatpak-wrapper.h");
+    pkg_config::Config::new()
+        .probe("libarchive")
+        .expect("libarchive headers required");
+    bindgen::Builder::default().header("native/archive-wrapper.h")
+        .allowlist_function("archive_read_.*|archive_entry_pathname|archive_entry_filetype|archive_entry_symlink|archive_entry_hardlink|archive_entry_size|archive_error_string")
+        .allowlist_type("archive|archive_entry").allowlist_var("ARCHIVE_.*|AE_IF.*|APP_AE_.*")
+        .layout_tests(false).generate_comments(false).generate().expect("Generate libarchive bindings")
+        .write_to_file(std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("archive.rs")).unwrap();
+    println!("cargo:rerun-if-changed=/usr/include/archive.h");
+    println!("cargo:rerun-if-changed=/usr/include/archive_entry.h");
 }

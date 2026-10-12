@@ -452,20 +452,20 @@ y digest; `build_aur(recipe: &AurRecipe, ctx: &ExecutionContext) -> AppResult<Ve
 `RunningApp` conserva PID, exe, start time e identidad del binario;
 `request_reopen(app: &App, approval: &ReopenApproval, ctx: &ExecutionContext) -> AppResult<()>`.
 
-- [ ] **1. Escribir `telegram_preserves_profile_and_previous_binary`**: archive
+- [x] **1. Escribir `telegram_preserves_profile_and_previous_binary`**: archive
   con traversal o symlink externo rechazado; instalación activa exige decisión;
   tdata y lanzador conservan hashes; binario previo retenido; activación fallida
   restaura instalación; proceso con mismo PID reutilizado nunca se cierra;
   versión igual no produce cierre. No tratar hash propio como firma oficial.
-- [ ] **2. Ejecutar** `cargo test --test telegram_activation`: FAIL con staging
+- [x] **2. Ejecutar** `cargo test --test telegram_activation`: FAIL con staging
   y procesos simulados, sin tocar `~/.local/share/TelegramDesktop` real.
-- [ ] **3. Implementar** interfaces con origen permitido y extracción restringida,
+- [x] **3. Implementar** interfaces con origen permitido y extracción restringida,
   preservación de Telegram/Updater y symlink externo existente del lanzador.
   Antes de reemplazar verificar proceso y aprobación; después verificar versión
   del binario/metadatos y funcionamiento sin exigir una nueva autenticación.
-- [ ] **4. Ejecutar** `cargo test --test telegram_activation`: PASS; ningún test
+- [x] **4. Ejecutar** `cargo test --test telegram_activation`: PASS; ningún test
   escribe el perfil real ni abre Telegram para descubrir su versión.
-- [ ] **5. Commit:** `feat: update local Telegram while preserving account data`.
+- [x] **5. Commit:** `feat: update local Telegram while preserving account data`.
 
 ### Task 12: Cliente Steam y estado de reapertura
 
