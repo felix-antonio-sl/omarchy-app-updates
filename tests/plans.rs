@@ -141,6 +141,106 @@ fn reviewed_scope_contains_system_languages_and_new_dependencies() {
     assert!(validate_plan(&plan, &r, &p, 99).is_err());
 }
 #[test]
+fn selected_flatpaks_share_one_prepared_transaction_and_runtime() {
+    use omarchy_app_updates::{
+        execution::flatpak::FlatpakBackend, planner::build_plan_with_flatpak,
+    };
+    struct Flatpaks(std::sync::atomic::AtomicUsize);
+    impl FlatpakBackend for Flatpaks {
+        fn prepare(&self, _: &Target, _: &str) -> AppResult<Vec<FlatpakChange>> {
+            panic!("must prepare selected apps together")
+        }
+        fn prepare_many(&self, targets: &[(&Target, &str)]) -> AppResult<Vec<FlatpakChange>> {
+            self.0.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            assert_eq!(targets.len(), 2);
+            let mut changes = targets
+                .iter()
+                .map(|(t, c)| FlatpakChange {
+                    installation: FlatpakInstall::User,
+                    reference: omarchy_app_updates::providers::flatpak::target_ref(t)
+                        .unwrap()
+                        .1,
+                    remote: "fixture".into(),
+                    commit: (*c).into(),
+                    previous_commit: Some("a".repeat(64)),
+                    operation_type: 1,
+                    download_bytes: 1,
+                    metadata: String::new(),
+                    old_metadata: String::new(),
+                })
+                .collect::<Vec<_>>();
+            let mut runtime = changes[0].clone();
+            runtime.reference = "runtime/org.test.Runtime/x86_64/stable".into();
+            changes.push(runtime);
+            Ok(changes)
+        }
+        fn apply(&self, _: &[FlatpakChange]) -> AppResult<()> {
+            panic!("planning must never deploy")
+        }
+    }
+    let d = tempfile::tempdir().unwrap();
+    let (mut report, snapshot, policy) = setup(d.path());
+    report.apps.clear();
+    report.checks.clear();
+    report.selected.clear();
+    for name in ["org.test.One", "org.test.Two"] {
+        let id = format!("flatpak:user:{name}/x86_64/stable");
+        let target = Target {
+            id: id.clone().into(),
+            locator: Locator::Flatpak {
+                installation: FlatpakInstall::User,
+                app_id: name.into(),
+                arch: "x86_64".into(),
+                branch: "stable".into(),
+                origin: "fixture".into(),
+            },
+            installed: Some(Version {
+                raw: "a".repeat(64),
+                kind: VersionKind::FlatpakCommit,
+                product: None,
+            }),
+        };
+        report.selected.push(id.clone().into());
+        report.apps.push(App {
+            id: id.into(),
+            name: name.into(),
+            desktop_ids: vec![],
+            components: vec![target.clone()],
+            suggested: true,
+        });
+        report.checks.push(Check {
+            target_id: target.id,
+            installed: target.installed,
+            available: Some(Version {
+                raw: "b".repeat(64),
+                kind: VersionKind::FlatpakCommit,
+                product: None,
+            }),
+            published: None,
+            checked_at: 100,
+            state: CheckState::UpdateAvailable,
+            stale: false,
+            source: None,
+            details: vec![],
+        });
+    }
+    let flatpaks = Flatpaks(std::sync::atomic::AtomicUsize::new(0));
+    let plan = build_plan_with_flatpak(
+        &report,
+        &report.selected,
+        &snapshot,
+        &policy,
+        100,
+        &Default::default(),
+        &flatpaks,
+    )
+    .unwrap();
+    assert_eq!(plan.steps.len(), 1);
+    assert_eq!(plan.steps[0].targets.len(), 2);
+    assert_eq!(plan.steps[0].flatpak_changes.len(), 3);
+    assert_eq!(flatpaks.0.load(std::sync::atomic::Ordering::Relaxed), 1);
+}
+#[test]
 fn versions_dependencies_policy_and_source_changes_invalidate_review() {
     let d = tempfile::tempdir().unwrap();
     let (r, mut s, p) = setup(d.path());

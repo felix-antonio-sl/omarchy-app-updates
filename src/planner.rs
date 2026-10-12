@@ -374,6 +374,25 @@ pub fn build_plan_with_recipes(
     now: u64,
     recipes: &BTreeMap<TargetId, crate::execution::aur::AurRecipe>,
 ) -> AppResult<UpdatePlan> {
+    build_plan_with_flatpak(
+        report,
+        selection,
+        snapshot,
+        policy,
+        now,
+        recipes,
+        &crate::flatpak_native::NativeFlatpak,
+    )
+}
+pub fn build_plan_with_flatpak(
+    report: &Report,
+    selection: &[AppId],
+    snapshot: &RepoSnapshot,
+    policy: &Policy,
+    now: u64,
+    recipes: &BTreeMap<TargetId, crate::execution::aur::AurRecipe>,
+    flatpak: &dyn crate::execution::flatpak::FlatpakBackend,
+) -> AppResult<UpdatePlan> {
     if !policy.coverage.verified() || !report.coverage.verified() {
         return Err(AppError::new(
             ErrorCode::CoverageNeedsReview,
@@ -388,6 +407,7 @@ pub fn build_plan_with_recipes(
     let mut selected_packages = BTreeSet::new();
     let mut requires_coherence = false;
     let mut build_dependencies = BTreeSet::new();
+    let mut flatpak_targets: BTreeMap<FlatpakInstall, Vec<(&Target, &str)>> = BTreeMap::new();
     let reviewed = recipes
         .values()
         .map(|r| (r.package_base.clone(), r.clone()))
@@ -548,13 +568,10 @@ pub fn build_plan_with_recipes(
                     requires_coherence = true;
                 }
                 Locator::Flatpak { installation, .. } => {
-                    let mut step = empty_step(StepKind::FlatpakUpdate, vec![target.id.clone()]);
-                    step.flatpak_changes =
-                        crate::execution::flatpak::prepare_flatpak(target, &available.raw)?;
-                    step.requires_auth = matches!(installation, FlatpakInstall::System { .. });
-                    if !step.flatpak_changes.is_empty() {
-                        steps.push(step);
-                    }
+                    flatpak_targets
+                        .entry(installation.clone())
+                        .or_default()
+                        .push((target, &available.raw));
                 }
                 Locator::TelegramLocal { .. } => {
                     if available.kind != VersionKind::Product
@@ -590,6 +607,17 @@ pub fn build_plan_with_recipes(
                 }
                 Locator::Web { .. } | Locator::Unknown { .. } => unreachable!(),
             }
+        }
+    }
+    for (installation, targets) in flatpak_targets {
+        let mut step = empty_step(
+            StepKind::FlatpakUpdate,
+            targets.iter().map(|(t, _)| t.id.clone()).collect(),
+        );
+        step.flatpak_changes = flatpak.prepare_many(&targets)?;
+        step.requires_auth = matches!(installation, FlatpakInstall::System { .. });
+        if !step.flatpak_changes.is_empty() {
+            steps.push(step);
         }
     }
     let mut notices = vec![];

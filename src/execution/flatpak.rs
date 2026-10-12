@@ -2,6 +2,15 @@ use super::*;
 use crate::providers::flatpak::{flatpak_query, target_ref, valid_commit};
 pub trait FlatpakBackend: Send + Sync {
     fn prepare(&self, target: &Target, commit: &str) -> AppResult<Vec<FlatpakChange>>;
+    fn prepare_many(&self, targets: &[(&Target, &str)]) -> AppResult<Vec<FlatpakChange>> {
+        match targets {
+            [(target, commit)] => self.prepare(target, commit),
+            _ => Err(AppError::new(
+                ErrorCode::Unsupported,
+                "El proveedor debe preparar todas las apps de la instalación juntas",
+            )),
+        }
+    }
     fn apply(&self, changes: &[FlatpakChange]) -> AppResult<()>;
 }
 pub fn prepare_flatpak(target: &Target, commit: &str) -> AppResult<Vec<FlatpakChange>> {

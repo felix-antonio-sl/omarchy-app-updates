@@ -355,6 +355,24 @@ impl FlatpakBackend for NativeFlatpak {
         let (scope, reference) = target_ref(target)?;
         transact(&scope, &[(reference, commit.into())], None)
     }
+    fn prepare_many(&self, targets: &[(&Target, &str)]) -> AppResult<Vec<FlatpakChange>> {
+        let mut scope = None;
+        let mut requested = vec![];
+        for (target, commit) in targets {
+            let (installation, reference) = target_ref(target)?;
+            if scope.as_ref().is_some_and(|s| s != &installation) {
+                return Err(AppError::new(
+                    ErrorCode::InvalidInput,
+                    "Mezcla de instalaciones Flatpak",
+                ));
+            }
+            scope = Some(installation);
+            requested.push((reference, (*commit).to_string()));
+        }
+        let scope = scope
+            .ok_or_else(|| AppError::new(ErrorCode::InvalidInput, "Sin aplicaciones Flatpak"))?;
+        transact(&scope, &requested, None)
+    }
     fn apply(&self, changes: &[FlatpakChange]) -> AppResult<()> {
         if changes
             .iter()
