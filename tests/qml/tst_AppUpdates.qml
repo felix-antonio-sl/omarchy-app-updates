@@ -137,6 +137,9 @@ TestCase {
         verify(state !== null);
         verify(state.text.indexOf("1.0-1") >= 0);
         verify(state.height > 0);
+        var steamState = findChild(body, "targetState_steam:client");
+        verify(steamState !== null);
+        verify(steamState.text.indexOf("Cliente:") === 0);
         verify(VM.stateLabel(fake.report.checks[2]).indexOf("anterior") >= 0);
         fake.error = "Autorización cancelada <b>";
         wait(0);

@@ -291,7 +291,7 @@ Item {
                                     required property var modelData
                                     objectName: "targetState_" + modelData.target_id
                                     width: parent.width
-                                    text: (row.checks.length > 1 ? (modelData.target_id.indexOf("steam-client") >= 0 ? "Cliente: " : "Lanzador: ") : "") + VM.stateLabel(modelData) + " · " + VM.version(modelData.installed)
+                                    text: (row.checks.length > 1 ? VM.componentLabel(row.modelData, modelData.target_id) : "") + VM.stateLabel(modelData) + " · " + VM.version(modelData.installed)
                                     color: modelData.stale ? Color.muted : (modelData.state === "update_available" ? Color.accent : Color.foreground)
                                     font.pixelSize: Style.font.caption
                                 }
