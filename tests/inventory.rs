@@ -14,6 +14,7 @@ fn fact(name: &str, exe: &str) -> PackageFacts {
         files: vec![exe.trim_start_matches('/').into()],
         url: "https://example.org".into(),
         depends: vec![],
+        provides: vec![],
         groups: vec![],
         ignored: false,
     }

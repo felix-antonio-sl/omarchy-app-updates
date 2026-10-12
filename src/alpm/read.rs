@@ -13,6 +13,8 @@ pub struct PackageFacts {
     pub files: Vec<String>,
     pub url: String,
     pub depends: Vec<String>,
+    #[serde(default)]
+    pub provides: Vec<String>,
     pub groups: Vec<String>,
     pub ignored: bool,
 }
@@ -70,11 +72,7 @@ impl AlpmReader {
                         files.push(ctext(f.name));
                     }
                 }
-                let deps = list_ptrs(ffi::alpm_pkg_get_depends(pkg));
-                let mut depends = Vec::new();
-                for d in deps {
-                    depends.push(ctext((*d.cast::<ffi::alpm_depend_t>()).name));
-                }
+                let depends = dependency_strings(ffi::alpm_pkg_get_depends(pkg));
                 result.push(PackageFacts {
                     name: name.clone(),
                     version: ctext(ffi::alpm_pkg_get_version(pkg)),
@@ -82,8 +80,18 @@ impl AlpmReader {
                     files,
                     url: ctext(ffi::alpm_pkg_get_url(pkg)),
                     depends,
-                    ignored: self.config.ignorepkgs.contains(&name)
-                        || groups.iter().any(|g| self.config.ignoregroups.contains(g)),
+                    provides: dependency_strings(ffi::alpm_pkg_get_provides(pkg)),
+                    ignored: self
+                        .config
+                        .ignorepkgs
+                        .iter()
+                        .any(|p| crate::providers::arch::glob_match(p, &name))
+                        || groups.iter().any(|g| {
+                            self.config
+                                .ignoregroups
+                                .iter()
+                                .any(|p| crate::providers::arch::glob_match(p, g))
+                        }),
                     groups,
                 });
             }
@@ -126,10 +134,8 @@ impl AlpmReader {
                         download_bytes: ffi::alpm_pkg_get_size(pkg).max(0) as u64,
                         filename: ctext(ffi::alpm_pkg_get_filename(pkg)),
                         sha256: ctext(ffi::alpm_pkg_get_sha256sum(pkg)),
-                        depends: list_ptrs(ffi::alpm_pkg_get_depends(pkg))
-                            .iter()
-                            .map(|d| ctext((*(*d).cast::<ffi::alpm_depend_t>()).name))
-                            .collect(),
+                        depends: dependency_strings(ffi::alpm_pkg_get_depends(pkg)),
+                        provides: dependency_strings(ffi::alpm_pkg_get_provides(pkg)),
                         files: vec![],
                     });
                 }
@@ -147,7 +153,23 @@ pub struct AvailablePackage {
     pub filename: String,
     pub sha256: String,
     pub depends: Vec<String>,
+    #[serde(default)]
+    pub provides: Vec<String>,
     pub files: Vec<String>,
+}
+unsafe fn dependency_strings(list: *mut ffi::alpm_list_t) -> Vec<String> {
+    unsafe {
+        list_ptrs(list)
+            .iter()
+            .map(|d| {
+                // libalpm returns a newly allocated dependency expression; copy then free.
+                let raw = ffi::alpm_dep_compute_string((*d).cast());
+                let value = ctext(raw);
+                ffi::free(raw.cast());
+                value
+            })
+            .collect()
+    }
 }
 pub fn system_packages() -> AppResult<Vec<PackageFacts>> {
     let cfg = AlpmConfig::load(

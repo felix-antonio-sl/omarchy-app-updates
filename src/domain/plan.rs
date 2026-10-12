@@ -2,6 +2,12 @@ use super::{AppId, FlatpakInstall, PlanId, TargetId};
 use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdatePlan {
+    #[serde(default)]
+    pub selected: Vec<AppId>,
+    #[serde(default)]
+    pub repository_digest: String,
+    #[serde(default)]
+    pub notices: Vec<String>,
     pub id: PlanId,
     pub created_at: u64,
     pub expires_at: u64,

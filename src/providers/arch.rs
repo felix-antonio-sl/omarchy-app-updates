@@ -1,13 +1,15 @@
 use super::*;
 use crate::{
-    alpm::{AlpmConfig, AlpmReader, AvailablePackage, RepoConfig},
+    alpm::{AlpmConfig, AlpmReader, AvailablePackage, PackageFacts, RepoConfig},
     io::command::CommandSpec,
     store::private_dir,
 };
 use sha2::{Digest, Sha256};
 use std::{path::PathBuf, sync::Arc};
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RepoSnapshot {
+    pub installed: Vec<PackageFacts>,
+    pub config_digest: String,
     pub repositories: Vec<RepoConfig>,
     pub packages: Vec<AvailablePackage>,
     pub fingerprint: String,
@@ -57,7 +59,11 @@ pub fn sync_snapshot(ctx: &ProviderContext) -> AppResult<RepoSnapshot> {
         ));
     }
     let fingerprint = format!("{:x}", Sha256::digest(serde_json::to_vec(&packages)?));
+    let installed = reader.installed()?;
+    let config_digest = format!("{:x}", Sha256::digest(serde_json::to_vec(&config)?));
     Ok(RepoSnapshot {
+        installed,
+        config_digest,
         repositories: config.repos,
         packages,
         fingerprint,

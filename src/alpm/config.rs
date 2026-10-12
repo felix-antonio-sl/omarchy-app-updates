@@ -1,13 +1,14 @@
 use crate::{domain::*, io::command::*};
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RepoConfig {
     pub name: String,
     pub servers: Vec<String>,
     pub siglevel: Vec<String>,
     pub usage: Vec<String>,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlpmConfig {
     pub root: PathBuf,
     pub dbpath: PathBuf,

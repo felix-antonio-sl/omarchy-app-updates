@@ -44,6 +44,7 @@ fn pkg(repo: &str, version: &str) -> AvailablePackage {
         filename: "ghostty.pkg.tar.zst".into(),
         sha256: "a".repeat(64),
         depends: vec![],
+        provides: vec![],
         files: vec![],
     }
 }
@@ -60,6 +61,8 @@ fn configured_priority_wins_and_repo_does_not_query_aur() {
         now: 100,
     };
     let snapshot = RepoSnapshot {
+        installed: vec![],
+        config_digest: "fixture-config".into(),
         repositories: vec![
             RepoConfig {
                 name: "extra".into(),
@@ -136,6 +139,8 @@ fn aur_metadata_is_data_and_repo_disappearance_requires_review() {
     assert_eq!(check.state, CheckState::UpdateAvailable);
     assert_eq!(check.available.unwrap().raw, "1.3.2-1");
     let snapshot = RepoSnapshot {
+        installed: vec![],
+        config_digest: "fixture-config".into(),
         repositories: vec![],
         packages: vec![],
         fingerprint: "empty".into(),
@@ -164,6 +169,8 @@ fn ignored_package_remains_visible_as_a_restriction() {
         now: 100,
     };
     let snapshot = RepoSnapshot {
+        installed: vec![],
+        config_digest: "fixture-config".into(),
         repositories: vec![RepoConfig {
             name: "extra".into(),
             servers: vec![],

@@ -5,6 +5,7 @@ mod flatpak_native;
 pub mod inventory;
 pub mod io;
 pub mod paths;
+pub mod planner;
 pub mod policy;
 pub mod protocol;
 pub mod providers;

@@ -23,7 +23,7 @@ fn isolated_database_and_includes() {
     let db = d.path().join("db");
     fs::create_dir_all(db.join("local/demo-1.0-1")).unwrap();
     fs::write(db.join("local/ALPM_DB_VERSION"), "9\n").unwrap();
-    fs::write(db.join("local/demo-1.0-1/desc"),"%NAME%\ndemo\n\n%VERSION%\n1.0-1\n\n%DESC%\nDemo\n\n%ARCH%\nx86_64\n\n%REASON%\n0\n\n%URL%\nhttps://example.org/\n\n").unwrap();
+    fs::write(db.join("local/demo-1.0-1/desc"),"%NAME%\ndemo\n\n%VERSION%\n1.0-1\n\n%DESC%\nDemo\n\n%ARCH%\nx86_64\n\n%REASON%\n0\n\n%URL%\nhttps://example.org/\n\n%DEPENDS%\nglibc>=2.33\n\n%PROVIDES%\ndemo-abi=1.0\n\n").unwrap();
     fs::write(
         db.join("local/demo-1.0-1/files"),
         "%FILES%\nusr/bin/demo\n\n",
@@ -57,6 +57,7 @@ fn isolated_database_and_includes() {
     assert_eq!(packages.len(), 1);
     assert_eq!(packages[0].name, "demo");
     assert!(packages[0].explicit);
+    assert_eq!(packages[0].depends, vec!["glibc>=2.33"]);
     assert_eq!(
         reader.owner(std::path::Path::new("/usr/bin/demo")).unwrap(),
         Some("demo".into())

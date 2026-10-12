@@ -7,7 +7,7 @@ fn main() {
     println!("cargo:rustc-env=APP_UPDATES_ALPM_VERSION={}", lib.version);
     let bindings = bindgen::Builder::default()
         .header("native/alpm-wrapper.h")
-        .allowlist_function("alpm_.*")
+        .allowlist_function("alpm_.*|free")
         .allowlist_type("alpm_.*")
         .allowlist_var("ALPM_.*")
         .prepend_enum_name(false)

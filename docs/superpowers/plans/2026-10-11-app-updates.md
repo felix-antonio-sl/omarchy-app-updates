@@ -350,7 +350,7 @@ canal; Web vincula el navegador actual sin ejecutar el acceso.
 `validate_plan(plan: &UpdatePlan, report: &Report, policy: &Policy, now: u64) -> AppResult<()>`;
 `plan_digest(plan: &UpdatePlan) -> String`.
 
-- [ ] **1. Escribir `reviewed_scope_is_complete`**: app Arch seleccionada genera
+- [x] **1. Escribir `reviewed_scope_is_complete`**: app Arch seleccionada genera
   paso ArchFull con todas las actualizaciones necesarias; paquetes de sistema y
   locales auxiliares quedan identificados; idioma Thunderbird se preserva;
   dependencia nueva o versión distinta invalida digest; vence a 900 s; selección
@@ -358,14 +358,14 @@ canal; Web vincula el navegador actual sin ejecutar el acceso.
   IgnorePkg incompatible con coherencia bloquea, sin quitar la restricción.
   Un paquete del alcance completo que toque un destino/ruta de IA protegido
   bloquea el plan completo, sin ocultar ese paquete ni hacer upgrade parcial.
-- [ ] **2. Ejecutar** `cargo test --test plans`: FAIL antes del planificador.
-- [ ] **3. Implementar** interfaces y digest canónico de destinos, versiones,
+- [x] **2. Ejecutar** `cargo test --test plans`: FAIL antes del planificador.
+- [x] **3. Implementar** interfaces y digest canónico de destinos, versiones,
   dependencias, receta AUR y decisiones, con listas ordenadas. No hashear solo
   el nombre de la app. Ordenar sistema coherente, compilaciones y acciones locales;
   excluir mise, limpieza de huérfanos y hooks generales de Omarchy.
-- [ ] **4. Ejecutar** `cargo test --test plans`: PASS. Snapshot y migraciones
+- [x] **4. Ejecutar** `cargo test --test plans`: PASS. Snapshot y migraciones
   específicas de Omarchy son partes visibles del plan si corresponden.
-- [ ] **5. Commit:** `feat: prepare complete update plans and reject changed scopes`.
+- [x] **5. Commit:** `feat: prepare complete update plans and reject changed scopes`.
 
 ### Task 9: Ejecutor administrativo y transacciones libalpm
 
