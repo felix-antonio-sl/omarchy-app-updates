@@ -9,6 +9,7 @@ Item {
     property bool awaiting: false
     property string previousId: ""
     property string expectedId: ""
+    property string observedId: ""
     property var receiptState: null
     readonly property string script: decodeURIComponent(Qt.resolvedUrl("../scripts/prepare-engine").toString().replace(/^file:\/\//, ""))
     readonly property string home: Quickshell.env("HOME")
@@ -30,12 +31,14 @@ Item {
         if (awaiting && value.operation_id !== previousId && !expectedId)
             expectedId = value.operation_id;
         if (["building", "awaiting_auth"].indexOf(value.phase) >= 0) {
+            observedId = value.operation_id;
             busy = true;
             probe.running = true;
         }
-        if (awaiting && value.operation_id === expectedId && value.phase === "completed") {
+        if (value.phase === "completed" && ((awaiting && value.operation_id === expectedId) || (!awaiting && value.operation_id === observedId))) {
             busy = false;
             awaiting = false;
+            observedId = "";
             finished();
         }
         if (value.phase === "failed") {

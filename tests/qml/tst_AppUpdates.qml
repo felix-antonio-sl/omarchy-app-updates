@@ -325,4 +325,14 @@ TestCase {
         verify(done);
         verify(!bootstrap.busy);
     }
+    function test_bootstrap_observer_recovers_after_shell_reload() {
+        var bootstrap = createTemporaryObject(bootstrapFactory, test);
+        var completed = 0;
+        bootstrap.finished.connect(function () { completed++; });
+        bootstrap.consume({unit:"omarchy-app-updates-prepare.service",operation_id:"observed",phase:"building",message:"running"});
+        verify(bootstrap.busy);
+        bootstrap.consume({unit:"omarchy-app-updates-prepare.service",operation_id:"observed",phase:"completed",message:"done"});
+        verify(!bootstrap.busy);
+        compare(completed, 1);
+    }
 }
