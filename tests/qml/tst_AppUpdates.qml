@@ -154,6 +154,7 @@ TestCase {
             steps: [
                 {
                     kind: "arch_full",
+                    requires_auth: true,
                     targets: [],
                     package_changes: [
                         {
@@ -161,7 +162,8 @@ TestCase {
                             old_version: "1",
                             new_version: "2",
                             reason: "system",
-                            action: "upgrade"
+                            action: "upgrade",
+                            download_bytes: 1024
                         }
                     ],
                     flatpak_changes: [],
@@ -172,6 +174,8 @@ TestCase {
         };
         wait(0);
         verify(body.planText.indexOf("extra-library") >= 0);
+        verify(body.planText.indexOf("1.0 KiB") >= 0);
+        verify(body.planText.indexOf("Autorización") >= 0);
         body.confirmPlan("old");
         compare(fake.requests.length, 0);
         body.confirmPlan("new");

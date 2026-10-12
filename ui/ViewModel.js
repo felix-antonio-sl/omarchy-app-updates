@@ -43,9 +43,12 @@ function planText(plan) {
   var lines=array(plan.notices).slice()
   array(plan.steps).forEach(function(s) {
     lines.push("\n"+({arch_full:"Arch · alcance completo",aur_build:"AUR · receta y artefactos",flatpak_update:"Flatpak · app y runtimes",telegram_replace:"Telegram · ejecutables locales",steam_update:"Steam · cliente Valve"})[s.kind])
+    if(s.requires_auth) lines.push("Autorización administrativa en el diálogo del sistema")
     array(s.package_changes).forEach(function(p) {lines.push(p.name+": "+(p.old_version||"sin instalar")+" → "+p.new_version+" · "+(({system:"sistema",app:"aplicación",dependency:"dependencia",build_dependency:"compilación"})[p.reason]||p.reason)+(p.action==="remove"?" · RETIRADA":""))})
     array(s.flatpak_changes).forEach(function(c) {lines.push(c.reference+" · "+(c.installation.kind==="user"?"usuario":"sistema")+" · "+c.remote+" · "+c.commit.slice(0,12))})
     array(s.downloads).forEach(function(d) {lines.push(d.url)})
+    var bytes=array(s.package_changes).reduce(function(n,p){return n+(p.download_bytes||0)},0)+array(s.flatpak_changes).reduce(function(n,p){return n+(p.download_bytes||0)},0)+array(s.downloads).reduce(function(n,d){return n+(d.bytes||0)},0);
+    if(bytes>0) lines.push("Descarga conocida: "+(bytes>=1048576?(bytes/1048576).toFixed(1)+" MiB":(bytes/1024).toFixed(1)+" KiB"))
     if(s.aur_recipe) lines.push("Commit: "+s.aur_recipe.commit+"\nReceta SHA-256: "+s.aur_recipe.digest)
     array(s.built_artifacts).forEach(function(a) {lines.push(a.name+" "+a.version+"\nSHA-256: "+a.sha256)})
   })
