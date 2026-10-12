@@ -1,6 +1,10 @@
 pub mod arch;
 pub mod aur;
 pub mod flatpak;
+pub mod releases;
+pub mod steam;
+pub mod telegram;
+pub mod web;
 use crate::{
     domain::*,
     io::{command::CommandRunner, http::HttpClient},

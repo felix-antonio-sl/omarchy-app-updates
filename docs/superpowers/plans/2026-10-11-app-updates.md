@@ -323,14 +323,14 @@ OperationId y `emit: &dyn EventSink`; `EventSink::send(event: OperationEvent) ->
 Telegram consulta metadatos/recibos y catálogo oficial; Steam lee manifiesto del
 canal; Web vincula el navegador actual sin ejecutar el acceso.
 
-- [ ] **1. Escribir `publisher_and_install_channel_are_distinct`**: estable frente
+- [x] **1. Escribir `publisher_and_install_channel_are_distinct`**: estable frente
   a prerelease; publicación mayor pero paquete al día da PublisherAhead; versión
   instalada posterior no ofrece downgrade; JSON alterado/429 da detalle de
   publicación desconocida sin convertir canal comprobado en fallo; redirect fuera
   del allowlist y descarga HTTP se rechazan. Steam paquete y cliente quedan distintos;
   remotos inexistentes, navegador desconocido y metadatos Telegram ausentes no se inventan.
-- [ ] **2. Ejecutar** `cargo test --test releases`: FAIL antes de adaptadores.
-- [ ] **3. Implementar** fuentes oficiales verificadas durante la ejecución:
+- [x] **2. Ejecutar** `cargo test --test releases`: FAIL antes de adaptadores.
+- [x] **3. Implementar** fuentes oficiales verificadas durante la ejecución:
   Chrome Version History; Mozilla product-details Thunderbird; endpoint update
   de VS Code; GitHub oficial de Ghostty/Audacity/Protégé/Telegram/Voxtype;
   GitLab oficial de Remmina; manifiesto Valve del canal. Obtener URL de Voxtype
@@ -338,9 +338,9 @@ canal; Web vincula el navegador actual sin ejecutar el acceso.
   extraer versión fiable; en otro caso su publicación queda sin cobertura.
   GeForce NOW utiliza el remoto oficial ya asociado. Registrar fixtures pequeñas,
   origen y estrategia; no copiar artículos ni datos de usuario.
-- [ ] **4. Ejecutar** `cargo test --test releases`: PASS; comparar app/package
+- [x] **4. Ejecutar** `cargo test --test releases`: PASS; comparar app/package
   según el tipo de versión y devolver fuentes y fecha en Check.
-- [ ] **5. Commit:** `feat: distinguish official releases from installable app versions`.
+- [x] **5. Commit:** `feat: distinguish official releases from installable app versions`.
 
 ### Task 8: Planes, fingerprints y alcance de sistema
 

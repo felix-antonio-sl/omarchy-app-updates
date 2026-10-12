@@ -1,0 +1,78 @@
+[
+  {
+    "packages": [
+      "google-chrome"
+    ],
+    "url": "https://versionhistory.googleapis.com/v1/chrome/platforms/linux/channels/stable/versions?pageSize=1",
+    "strategy": "chrome",
+    "website": "https://developer.chrome.com/docs/web-platform/versionhistory/examples"
+  },
+  {
+    "packages": [
+      "thunderbird",
+      "thunderbird-i18n-es-es"
+    ],
+    "url": "https://product-details.mozilla.org/1.0/thunderbird_versions.json",
+    "strategy": "thunderbird",
+    "website": "https://www.thunderbird.net/"
+  },
+  {
+    "packages": [
+      "visual-studio-code-bin",
+      "code"
+    ],
+    "url": "https://update.code.visualstudio.com/api/update/linux-x64/stable/latest",
+    "strategy": "vscode",
+    "website": "https://code.visualstudio.com/updates"
+  },
+  {
+    "packages": [
+      "ghostty"
+    ],
+    "url": "https://api.github.com/repos/ghostty-org/ghostty/tags?per_page=100",
+    "strategy": "github_tags",
+    "website": "https://ghostty.org/download"
+  },
+  {
+    "packages": [
+      "audacity"
+    ],
+    "url": "https://api.github.com/repos/audacity/audacity/releases/latest",
+    "strategy": "github_release",
+    "website": "https://github.com/audacity/audacity/releases"
+  },
+  {
+    "packages": [
+      "protege"
+    ],
+    "url": "https://api.github.com/repos/protegeproject/protege/releases/latest",
+    "strategy": "github_release",
+    "website": "https://github.com/protegeproject/protege/releases"
+  },
+  {
+    "packages": [
+      "telegram-local",
+      "telegram-desktop"
+    ],
+    "url": "https://api.github.com/repos/telegramdesktop/tdesktop/releases/latest",
+    "strategy": "github_release",
+    "website": "https://desktop.telegram.org/"
+  },
+  {
+    "packages": [
+      "voxtype",
+      "voxtype-bin"
+    ],
+    "url": "https://api.github.com/repos/peteonrails/voxtype/releases/latest",
+    "strategy": "github_release",
+    "website": "https://voxtype.io/download/"
+  },
+  {
+    "packages": [
+      "remmina"
+    ],
+    "url": "https://gitlab.com/api/v4/projects/Remmina%2FRemmina/releases?per_page=20",
+    "strategy": "gitlab_release",
+    "website": "https://gitlab.com/Remmina/Remmina/-/releases"
+  }
+]
