@@ -342,3 +342,36 @@ fn whole_flow_in_isolated_environment() {
         1
     );
 }
+#[test]
+fn repeated_inventory_of_excluded_launchers_does_not_expire_the_visible_cache() {
+    let d = tempfile::tempdir().unwrap();
+    let (report, snapshot, _, mut paths) = common::fixture(d.path());
+    let desktop = d.path().join("applications");
+    fs::create_dir(&desktop).unwrap();
+    paths.application_dirs = vec![desktop.clone()];
+    fs::write(
+        desktop.join("ghostty.desktop"),
+        "[Desktop Entry]\nName=Ghostty\nExec=/usr/bin/ghostty\n",
+    )
+    .unwrap();
+    fs::write(
+        desktop.join("codex.desktop"),
+        "[Desktop Entry]\nName=Codex\nExec=codex\n",
+    )
+    .unwrap();
+    Store::new(paths.clone())
+        .save(&State {
+            report,
+            ..Default::default()
+        })
+        .unwrap();
+    let commands = CommandRunner::with_backend(Arc::new(Commands));
+    for _ in 0..2 {
+        let report =
+            omarchy_app_updates::protocol::inventory_report(&paths, &snapshot.installed, &commands)
+                .unwrap();
+        assert_eq!(report.checked_at, Some(100));
+        assert_eq!(report.apps.len(), 1);
+        assert!(!report.checks[0].stale);
+    }
+}

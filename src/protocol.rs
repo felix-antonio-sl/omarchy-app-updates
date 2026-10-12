@@ -235,21 +235,8 @@ fn execute(req: &Request, paths: &Paths) -> AppResult<Value> {
         }
         Action::Inventory => {
             let facts = crate::alpm::system_packages()?;
-            let apps = crate::inventory::discover(
-                paths,
-                &facts,
-                &crate::io::command::CommandRunner::default(),
-            )?;
-            let policy = crate::policy::Policy::for_paths(paths)?;
-            let report = store.update(|state| {
-                crate::jobs::refresh::merge_inventory(&mut state.report, apps);
-                policy.filter_report(&mut state.report, &state.config)?;
-                if !state.config.initialized {
-                    state.config.selected = state.report.selected.clone();
-                    state.config.initialized = true;
-                }
-                Ok(state.report.clone())
-            })?;
+            let report =
+                inventory_report(paths, &facts, &crate::io::command::CommandRunner::default())?;
             Ok(serde_json::to_value(report)?)
         }
         Action::Selection => {
@@ -341,4 +328,21 @@ fn execute(req: &Request, paths: &Paths) -> AppResult<Value> {
             "Acción todavía no disponible",
         )),
     }
+}
+pub fn inventory_report(
+    paths: &Paths,
+    facts: &[crate::alpm::PackageFacts],
+    commands: &crate::io::command::CommandRunner,
+) -> AppResult<Report> {
+    let apps = crate::inventory::discover(paths, facts, commands)?;
+    let policy = crate::policy::Policy::for_paths(paths)?;
+    Store::new(paths.clone()).update(|state| {
+        crate::jobs::refresh::merge_inventory(&mut state.report, policy.visible(&apps));
+        policy.filter_report(&mut state.report, &state.config)?;
+        if !state.config.initialized {
+            state.config.selected = state.report.selected.clone();
+            state.config.initialized = true;
+        }
+        Ok(state.report.clone())
+    })
 }
