@@ -108,6 +108,19 @@ pub fn decode_request(bytes: &[u8]) -> AppResult<Request> {
 }
 pub fn dispatch(req: Request, paths: &Paths) -> AppResult<Response> {
     let result = match req.action {
+        Action::Inventory => {
+            let facts = crate::alpm::system_packages()?;
+            let apps = crate::inventory::discover(
+                paths,
+                &facts,
+                &crate::io::command::CommandRunner::default(),
+            )?;
+            let store = Store::new(paths.clone());
+            let mut state = store.load()?;
+            state.report.apps = apps;
+            store.save(&state)?;
+            Ok(serde_json::to_value(state.report)?)
+        }
         Action::Status => Ok(serde_json::to_value(
             Store::new(paths.clone()).load()?.report,
         )?),

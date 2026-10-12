@@ -1,5 +1,6 @@
 pub mod alpm;
 pub mod domain;
+pub mod inventory;
 pub mod io;
 pub mod paths;
 pub mod protocol;

@@ -222,19 +222,19 @@ produce `discover(paths: &Paths, facts: &[PackageFacts], io: &CommandRunner) -> 
 `parse_desktop(id: &str, bytes: &[u8]) -> AppResult<Option<DesktopEntry>>`.
 `DesktopEntry` contiene ID, nombre, Exec como dato, icono, ocultación y terminal.
 
-- [ ] **1. Escribir `xdg_inventory_without_execution`**: precedencia usuario,
+- [x] **1. Escribir `xdg_inventory_without_execution`**: precedencia usuario,
   `Hidden` elimina entrada del sistema, `NoDisplay` no ofrece app, varios
   lanzadores de LibreOffice cuentan una vez, dos instalaciones locales no se
   fusionan. Fixture con nombre `Clínica <b>LE</b>`, ruta con espacios y `%U`:
   se conserva el nombre literal y un ejecutable marcador nunca se ejecuta.
   La versión `1.0` del desktop WhatsApp no se convierte en versión de producto.
-- [ ] **2. Ejecutar** `cargo test --test inventory`: falla antes de implementar.
-- [ ] **3. Implementar** interfaces y resolución de propiedad sin ejecutar Exec.
+- [x] **2. Ejecutar** `cargo test --test inventory`: falla antes de implementar.
+- [x] **3. Implementar** interfaces y resolución de propiedad sin ejecutar Exec.
   Leer lista base de Omarchy como sugerencia; reconocer las 12 apps iniciales,
   Telegram local, Steam cliente y webapps. Orca ausente no se reconstruye.
-- [ ] **4. Ejecutar** `cargo test --test inventory`: PASS; `inventory` real debe
+- [x] **4. Ejecutar** `cargo test --test inventory`: PASS; `inventory` real debe
   devolver solo datos y no abrir aplicaciones. Evidencia real en estado privado.
-- [ ] **5. Commit:** `feat: discover desktop applications and installation identities`.
+- [x] **5. Commit:** `feat: discover desktop applications and installation identities`.
 
 ### Task 4: Exclusiones obligatorias y selección editable
 
